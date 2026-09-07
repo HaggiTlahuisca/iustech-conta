@@ -3,95 +3,113 @@
 import Link from 'next/link';
 
 import { PageHeading } from '@/components/layout/page-heading';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { cn } from '@/lib/utils';
+import { CfdiCargarMasButton } from '@/components/procesador-cfdi/cfdi-cargar-mas-button';
+import { CfdiClearButton } from '@/components/procesador-cfdi/cfdi-clear-button';
+import { CfdiExportButtons } from '@/components/procesador-cfdi/cfdi-export-buttons';
+import { CfdiFiltersPanel } from '@/components/procesador-cfdi/cfdi-filters';
+import { CfdiReportes } from '@/components/procesador-cfdi/cfdi-reportes';
+import { CfdiStats } from '@/components/procesador-cfdi/cfdi-stats';
+import { CfdiTable } from '@/components/procesador-cfdi/cfdi-table';
+import { CfdiUploader } from '@/components/procesador-cfdi/cfdi-uploader';
+import { CfdiValidarButton } from '@/components/procesador-cfdi/cfdi-validar-button';
+import { ProcesadorEstado } from '@/components/shared/procesador-estado';
+import { ProcesadorSinEmpresa } from '@/components/shared/procesador-sin-empresa';
+import { useProcesadorCfdi } from '@/hooks/use-procesador-cfdi';
 
-interface Procesador {
-  href: string;
-  title: string;
-  description: string;
-  icon: string;
-  disponible: boolean;
-}
+export default function ProcesadorCfdiPage() {
+  const {
+    filtros,
+    setFiltro,
+    reset,
+    filtrosActivos,
+    page,
+    setPage,
+    pageSize,
+    data,
+    stats,
+    loading,
+    error,
+    recargar,
+    hidratado,
+    rfcActivo,
+    sinEmpresa,
+  } = useProcesadorCfdi();
 
-// Tres procesadores espejo de todoconta-apps. Por ahora solo CFDI está activo;
-// Pagos y Nómina se activan en PRs siguientes según el roadmap.
-const PROCESADORES: Procesador[] = [
-  {
-    href: '/comprobantes/cfdi',
-    title: 'Procesador de CFDI',
-    description:
-      'Procesa CFDIs de ingreso, egreso, traslado y pagos. Filtra, agrupa y exporta a Excel o CSV.',
-    icon: 'ph:files-light',
-    disponible: true,
-  },
-  {
-    href: '/comprobantes/pagos',
-    title: 'Procesador de Pagos',
-    description:
-      'Relaciona facturas PPD con sus complementos de pago. Detecta pagos huérfanos y complementos extemporáneos.',
-    icon: 'ph:link-light',
-    disponible: true,
-  },
-  {
-    href: '/comprobantes/nomina',
-    title: 'Procesador de Nómina',
-    description:
-      'CFDIs de Nómina 1.2 con desglose por empleado, conciliación IMSS y reportes de ISR retenido.',
-    icon: 'ph:users-three-light',
-    disponible: true,
-  },
-];
+  const total = data?.total ?? 0;
+  // Buffer "vacío" = NO hay CFDIs de la empresa en la DB. Si los hay pero los
+  // filtros los excluyen, NO es buffer vacío — la tabla muestra "sin resultados"
+  // y los filtros siguen visibles para que el usuario los ajuste.
+  const bufferVacio = hidratado && stats !== null && stats.total_global === 0;
 
-export default function ComprobantesPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Comprobantes"
-        description="Procesa los XMLs descargados para obtener tablas, validaciones, reportes y exportaciones."
+        title="Procesador de CFDI"
+        description="Carga XMLs, filtra, clasifica y exporta tus facturas."
+        action={
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/comprobantes">
+              <Icon icon="ph:arrow-left-light" className="size-4" />
+              Comprobantes
+            </Link>
+          </Button>
+        }
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {PROCESADORES.map((p) => (
-          <Card key={p.href} className={cn(!p.disponible && 'opacity-60')}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Icon icon={p.icon} className="size-5" />
-                {p.title}
-                {!p.disponible && (
-                  <Badge variant="secondary" className="ml-auto text-[10px]">
-                    Próximamente
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription>{p.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {p.disponible ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={p.href}>
-                    Abrir
-                    <Icon icon="ph:arrow-right-light" className="size-4" />
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" disabled>
-                  No disponible
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Sin empresa activa el hook no consulta nada: el buffer vive POR empresa. */}
+      {sinEmpresa || !rfcActivo ? (
+        <ProcesadorSinEmpresa listo={sinEmpresa} />
+      ) : (
+        <ProcesadorEstado
+          stats={stats}
+          error={error}
+          loading={loading}
+          onReintentar={recargar}
+        >
+          {/* Empty state: buffer vacío → uploader grande, sin filtros ni reportes. */}
+          {bufferVacio && <CfdiUploader onCargado={recargar} />}
+
+          {/* Estado normal: hay CFDIs en el buffer de la empresa. */}
+          {!bufferVacio && stats !== null && (
+            <>
+              {/* Acciones */}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <CfdiValidarButton rfc={rfcActivo} onValidado={recargar} />
+                <CfdiCargarMasButton onCargado={recargar} />
+                <CfdiExportButtons rfc={rfcActivo} filtros={filtros} />
+                <CfdiClearButton
+                  rfc={rfcActivo}
+                  total={stats.total_comprobantes}
+                  onBorrado={recargar}
+                />
+              </div>
+
+              <CfdiStats stats={stats} />
+
+              <CfdiFiltersPanel
+                filtros={filtros}
+                setFiltro={setFiltro}
+                reset={reset}
+                filtrosActivos={filtrosActivos}
+              />
+
+              <div className="space-y-2">
+                <CfdiTable
+                  data={data}
+                  page={page}
+                  pageSize={pageSize}
+                  loading={loading}
+                  onPage={setPage}
+                />
+              </div>
+
+              {total > 0 && <CfdiReportes rfc={rfcActivo} filtros={filtros} />}
+            </>
+          )}
+        </ProcesadorEstado>
+      )}
     </div>
   );
 }

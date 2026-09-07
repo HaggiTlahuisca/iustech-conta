@@ -15,15 +15,13 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Icon } from '@/components/ui/icon';
-import type { CfdiEstadoDiot, CfdiFiltros, CfdiTipo } from '@/lib/types';
+import type { CfdiFiltros, CfdiTipo } from '@/lib/types';
 
 interface Props {
   filtros: CfdiFiltros;
   setFiltro: <K extends keyof CfdiFiltros>(key: K, value: CfdiFiltros[K]) => void;
   reset: () => void;
   filtrosActivos: number;
-  /** false = la empresa no presenta DIOT (p. ej. RESICO): sin filtro «Estado DIOT». */
-  mostrarDiot?: boolean;
 }
 
 const TIPOS: { value: CfdiTipo | 'todos'; label: string }[] = [
@@ -39,13 +37,6 @@ const DIRECCIONES: { value: 'todos' | 'E' | 'R'; label: string }[] = [
   { value: 'todos', label: 'Ambos' },
   { value: 'R', label: 'Recibidos' },
   { value: 'E', label: 'Emitidos' },
-];
-
-const ESTADOS_DIOT: { value: CfdiEstadoDiot | 'todos'; label: string }[] = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'pasa', label: 'Pasa a DIOT' },
-  { value: 'excluido', label: 'Excluidos' },
-  { value: 'noaplica', label: 'No aplica' },
 ];
 
 /** Bloque de filtros con etiqueta-eyebrow (Clasificación / Periodo / Importe). */
@@ -65,7 +56,6 @@ export function CfdiFiltersPanel({
   setFiltro,
   reset,
   filtrosActivos,
-  mostrarDiot = true,
 }: Props) {
   const [open, setOpen] = useState(true);
 
@@ -140,12 +130,7 @@ export function CfdiFiltersPanel({
           </div>
 
           <FiltroGrupo label="Clasificación">
-            <div
-              className={cn(
-                'grid grid-cols-1 gap-3.5',
-                mostrarDiot ? 'sm:grid-cols-3' : 'sm:grid-cols-2',
-              )}
-            >
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tipo</Label>
                 <Select
@@ -186,28 +171,6 @@ export function CfdiFiltersPanel({
                   </SelectContent>
                 </Select>
               </div>
-              {mostrarDiot && (
-                <div className="space-y-2">
-                  <Label>Estado DIOT</Label>
-                  <Select
-                    value={filtros.diot ?? 'todos'}
-                    onValueChange={(v) =>
-                      setFiltro('diot', v === 'todos' ? null : (v as CfdiEstadoDiot))
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ESTADOS_DIOT.map((d) => (
-                        <SelectItem key={d.value} value={d.value}>
-                          {d.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
           </FiltroGrupo>
 
