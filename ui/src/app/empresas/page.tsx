@@ -123,26 +123,32 @@ function EmpresasContenido() {
   const columnas: ResourceListColumn<Empresa>[] = [
     {
       key: 'rfc',
-      header: 'RFC',
-      width: 'w-40',
+      header: 'RFC / Razón Social',
+      width: 'w-auto',
       render: (e) => (
-        <span className="font-mono text-xs font-medium">{e.rfc}</span>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold text-foreground">{e.rfc}</span>
+            <EmpresaTipoBadge rfc={e.rfc} />
+          </div>
+          <span className="truncate text-xs font-medium text-muted-foreground">{e.nombre}</span>
+        </div>
       ),
     },
     {
-      key: 'nombre',
-      header: 'Nombre',
+      key: 'regimen',
+      header: 'Régimen Fiscal',
       hideOnMobile: true,
-      render: (e) => (
-        <span className="truncate text-sm text-muted-foreground">{e.nombre}</span>
-      ),
-    },
-    {
-      key: 'tipo',
-      header: 'Tipo',
-      width: 'w-20',
-      hideOnMobile: true,
-      render: (e) => <EmpresaTipoBadge rfc={e.rfc} />,
+      render: (e) => {
+        // En tu tipo Empresa actual, el array de regímenes podría estar guardado.
+        // Asumiendo que existe y tiene formato [{ clave: '...', nombre: '...' }].
+        const regimenPrincipal = e.regimenes?.[0]?.nombre || 'Sin régimen registrado';
+        return (
+          <span className="truncate text-xs text-muted-foreground" title={regimenPrincipal}>
+            {regimenPrincipal}
+          </span>
+        );
+      },
     },
     ...(vista === 'activas'
       ? [
