@@ -143,7 +143,7 @@ function EmpresasContenido() {
             header: 'Estado',
             width: 'w-40',
             render: (e) => <EmpresaStatusGroup empresa={e} />,
-          } satisfies ResourceListColumn<Empresa>,
+          } ResourceListColumn<Empresa>,
         ]
       : []),
   ];
