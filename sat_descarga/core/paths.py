@@ -4,26 +4,34 @@ Composición centralizada de las rutas de salida LOCAL de las descargas.
 Única fuente de verdad del layout `descargas/`, agrupado por **tipo de documento → RFC**
 (no por método de autenticación: al usuario no le importa si bajó por CIEC o e.firma).
 
-    descargas/
-      cfdi/{RFC}/{emitidos|recibidos}/{desde}_a_{hasta}/...
-      constancia/{RFC}/constancia_{RFC}_{YYYYMMDD}.pdf
-      opinion/{RFC}/opinion32d_{RFC}_{YYYYMMDD}.pdf
-
-Vive en `core/` (sumidero de dependencias: lo pueden importar `cli/`, `portal/`,
-`webservice/`, `api/` sin ciclos). Solo usa stdlib.
-
-Cambiar singular↔plural de las carpetas de tipo, o apagar la agrupación por solicitud,
-es un único edit aquí (las constantes de abajo).
+Modificado para Aislamiento de Entorno: Fuerza a que las carpetas se creen
+de forma relativa al ejecutable o script principal, evitando ensuciar la ruta global del usuario.
 """
 
 from __future__ import annotations
 
+import sys
 from datetime import date
 from pathlib import Path
 from typing import Optional, Union
 
+# --- Lógica de Aislamiento de Entorno (Modo Portable) ---
+def get_app_dir() -> Path:
+    """
+    Determina el directorio base de la aplicación.
+    Si es un ejecutable congelado (PyInstaller, cx_Freeze), usa el directorio del ejecutable.
+    Si es un script normal, usa el directorio de ejecución actual (cwd).
+    """
+    if getattr(sys, 'frozen', False):
+        # Si está empaquetado como un .exe
+        return Path(sys.executable).parent
+    else:
+        # Si se ejecuta desde el código fuente (.venv)
+        return Path.cwd()
+
 # --- Punto único para nombrar las carpetas (singular ↔ plural) -------------
-BASE_DIR = "descargas"          # wrapper raíz (plural, estilo "Descargas/Documentos")
+# Ahora BASE_DIR es una ruta absoluta anclada a la carpeta de la app.
+BASE_DIR = get_app_dir() / "descargas"
 TIPO_CFDI = "cfdi"              # categoría en singular; → "cfdis" para plural
 TIPO_CONSTANCIA = "constancia"  # → "constancias"
 TIPO_OPINION = "opinion"        # → "opiniones"
@@ -42,12 +50,12 @@ AGRUPAR_POR_EVENTO = True
 
 
 def base() -> Path:
-    """Raíz `descargas/` (relativa al cwd)."""
+    """Raíz absoluta `descargas/`."""
     return Path(BASE_DIR)
 
 
 def _raiz(salida_base: Optional[Union[str, Path]]) -> Path:
-    """Base efectiva: el `--salida` del usuario si lo dio, si no `descargas/`."""
+    """Base efectiva: el `--salida` del usuario si lo dio, si no `descargas/` absolutas."""
     return Path(salida_base) if salida_base else base()
 
 
@@ -65,7 +73,7 @@ def dir_cfdi(
     salida_base: Optional[Union[str, Path]] = None,
 ) -> Path:
     """
-    ``descargas/cfdi/{RFC}/{emitidos|recibidos}/[{desde}_a_{hasta}]/``
+    ``[DIRECTORIO_APP]/descargas/cfdi/{RFC}/{emitidos|recibidos}/[{desde}_a_{hasta}]/``
 
     El nivel de carpeta por solicitud se omite si `AGRUPAR_POR_EVENTO` es False o si
     no se pasan ambas fechas.
@@ -80,7 +88,7 @@ def dir_cfdi(
 
 
 def dir_cfdi_base(rfc: str, *, salida_base: Optional[Union[str, Path]] = None) -> Path:
-    """``descargas/cfdi/{RFC}/`` — usado por `retomar` (sin tipo ni fechas conocidos)."""
+    """``[DIRECTORIO_APP]/descargas/cfdi/{RFC}/`` — usado por `retomar` (sin tipo ni fechas conocidos)."""
     return _raiz(salida_base) / TIPO_CFDI / rfc.strip().upper()
 
 
@@ -91,7 +99,7 @@ def dir_documento(
     salida_base: Optional[Union[str, Path]] = None,
 ) -> Path:
     """
-    ``descargas/{tipo_doc}/{RFC}/`` para documentos PDF (constancia, opinión).
+    ``[DIRECTORIO_APP]/descargas/{tipo_doc}/{RFC}/`` para documentos PDF (constancia, opinión).
 
     Args:
         tipo_doc: una de las constantes `TIPO_CONSTANCIA` / `TIPO_OPINION`.
@@ -107,7 +115,7 @@ def dir_ce(
     *,
     salida_base: Optional[Union[str, Path]] = None,
 ) -> Path:
-    """``descargas/ce/{RFC}/{ejercicio}/`` — acuses de contabilidad electrónica.
+    """``[DIRECTORIO_APP]/descargas/ce/{RFC}/{ejercicio}/`` — acuses de contabilidad electrónica.
 
     El nivel {ejercicio} espeja ``diot/presentaciones/{RFC}/{ejercicio}/`` y evita
     mezclar años (hasta 13 periodos x 2 acuses AR_/AP_ por año).
