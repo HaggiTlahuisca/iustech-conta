@@ -77,7 +77,7 @@ export function nombreCortoEmpresa(nombre: string): string {
 // ---------------------------------------------------------------------------
 
 export interface Sugerencia {
-  /** Determinista: "efirma-{rfc}-{vencimiento}" | "diot-{YYYY-MM}". */
+  /** Determinista: "efirma-{rfc}-{vencimiento}". */
   id: string;
   titulo: string;
   motivo: string;
@@ -87,17 +87,10 @@ export interface Sugerencia {
   fecha: string | null;
 }
 
-function fechaIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`;
-}
-
 /**
  * Deriva las sugerencias vigentes:
  * - Renovar e.firma por empresa activa con vencimiento a ≤ 30 días (aún
  *   vigente: la renovación en línea requiere e.firma viva).
- * - Generar la DIOT del mes anterior (obligación mensual, vence el 17).
  *
  * Suprime las descartadas y las ya aceptadas (tarea con ese `sugerencia_id`).
  */
@@ -105,7 +98,6 @@ export function derivarSugerencias(
   empresas: Empresa[],
   tareas: Tarea[],
   descartadas: string[],
-  hoy = new Date(),
 ): Sugerencia[] {
   const suprimidas = new Set([
     ...descartadas,
@@ -130,23 +122,6 @@ export function derivarSugerencias(
       fecha: semaforo.fecha,
     });
   }
-
-  // DIOT del mes anterior: se presenta a más tardar el 17 del mes en curso.
-  const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-  const clave = `${mesAnterior.getFullYear()}-${String(mesAnterior.getMonth() + 1).padStart(2, '0')}`;
-  const nombreMes = mesAnterior.toLocaleDateString('es-MX', {
-    month: 'long',
-    year: 'numeric',
-  });
-  sugerencias.push({
-    id: `diot-${clave}`,
-    titulo: `Generar la DIOT de ${nombreMes}`,
-    motivo: 'Obligación mensual · vence el 17',
-    rfc: null,
-    tipo: 'recurrente',
-    prioridad: 'media',
-    fecha: fechaIso(new Date(hoy.getFullYear(), hoy.getMonth(), 17)),
-  });
 
   const pesoPrioridad: Record<TareaPrioridad, number> = { alta: 0, media: 1, baja: 2 };
   return sugerencias

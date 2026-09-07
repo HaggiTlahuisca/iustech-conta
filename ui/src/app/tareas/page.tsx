@@ -188,7 +188,7 @@ export default function TareasPage() {
     <div className="space-y-5">
       <PageHeading
         title="Tareas"
-        description="Tu centro de mando: pendientes fiscales, recordatorios y lo que tengas en mente — con o sin empresa."
+        description="Un bloc de notas con esteroides: anota tus pendientes, dales una fecha límite y visualiza su estatus (Sin iniciar, En proceso o Finalizado)."
         action={
           <Button onClick={() => setNuevaAbierta(true)}>
             <Icon icon="ph:plus-light" className="size-4" />
