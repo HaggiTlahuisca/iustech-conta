@@ -136,20 +136,20 @@ function EmpresasContenido() {
       ),
     },
     {
-      key: 'regimen',
-      header: 'Régimen Fiscal',
-      hideOnMobile: true,
-      render: (e) => {
-        // En tu tipo Empresa actual, el array de regímenes podría estar guardado.
-        // Asumiendo que existe y tiene formato [{ clave: '...', nombre: '...' }].
-        const regimenPrincipal = e.regimenes?.[0]?.nombre || 'Sin régimen registrado';
-        return (
-          <span className="truncate text-xs text-muted-foreground" title={regimenPrincipal}>
-            {regimenPrincipal}
-          </span>
-        );
-      },
-    },
+//      key: 'regimen',
+//      header: 'Régimen Fiscal',
+//      hideOnMobile: true,
+//      render: (e) => {
+//        // En tu tipo Empresa actual, el array de regímenes podría estar guardado.
+//        // Asumiendo que existe y tiene formato [{ clave: '...', nombre: '...' }].
+//        const regimenPrincipal = e.regimenes?.[0]?.nombre || 'Sin régimen registrado';
+//        return (
+//          <span className="truncate text-xs text-muted-foreground" title={regimenPrincipal}>
+//            {regimenPrincipal}
+//          </span>
+//        );
+//      },
+//    },
     ...(vista === 'activas'
       ? [
           {
