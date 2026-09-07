@@ -79,7 +79,6 @@ function leerStorage(key: string): Record<string, unknown> | null {
   }
 }
 
-
 /** Selector de carpeta nativo del SO (solo en Electron); null en navegador. */
 function elegirCarpetaNativo(): Promise<string | null> | null {
   if (typeof window === 'undefined') return null;
@@ -389,15 +388,22 @@ export function OrganizadorForm({
     <Card>
       <CardContent className="pt-6">
         <Tabs defaultValue="organizar">
-          <TabsList className="mb-4">
-            <TabsTrigger value="organizar">Organizar</TabsTrigger>
-            <TabsTrigger value="renombrar">Renombrar</TabsTrigger>
-            <TabsTrigger value="deduplicar">Quitar duplicados</TabsTrigger>
+          <TabsList className="mb-4 w-full grid grid-cols-3">
+            <TabsTrigger value="organizar">Organizar CFDI</TabsTrigger>
+            <TabsTrigger value="renombrar">Renombrar XMLs</TabsTrigger>
+            <TabsTrigger value="deduplicar">Quitar Duplicados</TabsTrigger>
           </TabsList>
 
           {/* ---- Tab: Organizar ---- */}
           <TabsContent value="organizar">
             <div className="space-y-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold">Organiza tus Comprobantes</h3>
+                <p className="text-xs text-muted-foreground">
+                  Acomoda automáticamente todos los archivos XML de una carpeta en subcarpetas estructuradas por año, mes, RFC o flujo.
+                </p>
+              </div>
+
               <DirectoryField
                 id="org-origen"
                 label="Carpeta de origen"
@@ -475,7 +481,7 @@ export function OrganizadorForm({
                   onCheckedChange={cambiarCopiar}
                 />
                 <Label htmlFor="org-copiar">
-                  Copiar archivos (en vez de mover)
+                  Copiar archivos (en vez de moverlos)
                 </Label>
               </div>
 
@@ -497,6 +503,13 @@ export function OrganizadorForm({
           {/* ---- Tab: Renombrar ---- */}
           <TabsContent value="renombrar">
             <div className="space-y-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold">Estandariza Nombres</h3>
+                <p className="text-xs text-muted-foreground">
+                  Renombra masivamente los archivos XML para que puedas identificar su contenido (RFC, folio, UUID) sin abrirlos.
+                </p>
+              </div>
+
               <DirectoryField
                 id="ren-directorio"
                 label="Carpeta a renombrar"
@@ -507,7 +520,7 @@ export function OrganizadorForm({
               />
 
               <div className="space-y-2">
-                <Label htmlFor="ren-patron">Nombre del archivo</Label>
+                <Label htmlFor="ren-patron">Patrón de nombre de archivo</Label>
                 <Select value={renPatron} onValueChange={cambiarPatron}>
                   <SelectTrigger id="ren-patron" className="w-full">
                     <SelectValue />
@@ -552,7 +565,7 @@ export function OrganizadorForm({
                   (esNombreCustom && partesNombre.length === 0)
                 }
               >
-                {isLoading ? 'Procesando...' : 'Renombrar'}
+                {isLoading ? 'Procesando...' : 'Renombrar Archivos'}
               </Button>
             </div>
           </TabsContent>
@@ -560,6 +573,13 @@ export function OrganizadorForm({
           {/* ---- Tab: Deduplicar ---- */}
           <TabsContent value="deduplicar">
             <div className="space-y-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold">Limpia tu Almacenamiento</h3>
+                <p className="text-xs text-muted-foreground">
+                  Escanea una carpeta en busca de XMLs repetidos (mismo UUID) y conserva solo una copia para ahorrar espacio.
+                </p>
+              </div>
+
               <DirectoryField
                 id="ded-directorio"
                 label="Carpeta a revisar"
@@ -576,19 +596,20 @@ export function OrganizadorForm({
                   onCheckedChange={setDedDryRun}
                 />
                 <Label htmlFor="ded-dryrun">
-                  Solo buscar (no eliminar)
+                  Modo seguro: Solo buscar (no eliminar archivos)
                 </Label>
               </div>
 
               <Button
                 onClick={handleDeduplicar}
                 disabled={isLoading || !dedDirectorio}
+                variant={dedDryRun ? 'secondary' : 'destructive'}
               >
                 {isLoading
                   ? 'Procesando...'
                   : dedDryRun
-                    ? 'Buscar duplicados'
-                    : 'Eliminar duplicados'}
+                    ? 'Buscar Duplicados'
+                    : 'Eliminar Duplicados'}
               </Button>
             </div>
           </TabsContent>
