@@ -136,6 +136,18 @@ function EmpresasContenido() {
       ),
     },
     {
+      key: 'regimen',
+      header: 'Régimen Fiscal',
+      hideOnMobile: true,
+      render: (e) => {
+        const regimenPrincipal = e.regimenes?.[0]?.nombre || 'Sin régimen registrado';
+        return (
+          <span className="truncate text-xs text-muted-foreground" title={regimenPrincipal}>
+            {regimenPrincipal}
+          </span>
+        );
+      },
+    },
     ...(vista === 'activas'
       ? [
           {
@@ -143,7 +155,7 @@ function EmpresasContenido() {
             header: 'Estado',
             width: 'w-40',
             render: (e) => <EmpresaStatusGroup empresa={e} />,
-          } ResourceListColumn<Empresa>,
+          },
         ]
       : []),
   ];
