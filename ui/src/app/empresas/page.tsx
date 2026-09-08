@@ -118,7 +118,7 @@ function EmpresasContenido() {
       key: 'rfc',
       header: 'RFC / Razón Social',
       width: 'w-auto',
-      render: (e) => (
+      render: (e: Empresa) => (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm font-bold text-foreground">{e.rfc}</span>
@@ -132,7 +132,7 @@ function EmpresasContenido() {
       key: 'regimen',
       header: 'Régimen Fiscal',
       hideOnMobile: true,
-      render: (e) => {
+      render: (e: Empresa) => {
         const regimenPrincipal = e.regimenes_fiscales?.[0]?.descripcion || 'Sin régimen registrado';
         return (
           <span className="truncate text-xs text-muted-foreground" title={regimenPrincipal}>
@@ -147,7 +147,7 @@ function EmpresasContenido() {
             key: 'estado',
             header: 'Estado',
             width: 'w-40',
-            render: (e) => <EmpresaStatusGroup empresa={e} />,
+            render: (e: Empresa) => <EmpresaStatusGroup empresa={e} />,
           },
         ]
       : []),
