@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { Bell } from '@/components/notifications/bell';
 import { ReportButton } from '@/components/feedback/report-button';
 import { PlanBadge } from '@/components/auth/plan-badge';
 import { WindowControls } from '@/components/layout/window-controls';
@@ -16,9 +15,6 @@ import { detectarPlataforma } from '@/lib/atajos';
  * - Windows (`titleBarStyle: hidden`): sin barra nativa — la app dibuja sus
  *   propios min/max/cerrar (`WindowControls`) pegados al borde derecho.
  * En el navegador (dev) es solo una franja normal.
- *
- * La campana y el badge van en su propio contenedor `no-drag` (la regla global
- * de globals.css cubre los popovers flotantes).
  */
 export function Titlebar() {
   const [{ desktop, mac, win }, set] = useState({
@@ -51,7 +47,6 @@ export function Titlebar() {
       >
         <PlanBadge />
         <ReportButton />
-        <Bell />
         {conControles && <WindowControls />}
       </div>
     </div>
