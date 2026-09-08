@@ -1,6 +1,6 @@
 """
-Cliente HTTP del agente local hacia la API de todoconta-apps
-(`https://api.todoconta.com/api/desktop/*`), junto con la persistencia segura
+Cliente HTTP del agente local hacia la API de iustechconta-apps
+(`https://api.iustechconta.com/api/desktop/*`), junto con la persistencia segura
 del token de sesión (keyring del SO en desktop; archivo cifrado en modo hosted,
 vía `core/secretos`).
 
@@ -9,7 +9,7 @@ Responsabilidades:
 - Guardar/cargar/borrar el Bearer token en el backend de secretos (no en disco
   en texto plano).
 - Llamar al backend con el Bearer para license + checkout.
-- Cachear el estado de licencia en `~/.sat-descarga/license-cache.json` con
+- Cachear el estado de licencia en `~/.iustechconta/license-cache.json` con
   TTL de 24h y un "grace period" de 30 días offline (la app NO se bloquea si
   el backend está caído; solo se desactualiza el badge de fundador).
 """
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class ServicioNoDisponible(ErrorEsperado):
-    """No hubo conexión con api.todoconta.com (internet del usuario caído o
+    """No hubo conexión con api.iustechconta.com (internet del usuario caído o
     backend inaccesible). Es transitorio: los routers lo traducen a HTTP 503
     («reintenta»), no a un 500/502 que Sentry cuente como bug."""
 
@@ -68,16 +68,16 @@ def _get_con_red(url: str, **kwargs) -> requests.Response:
 # Configuración
 # ---------------------------------------------------------------------------
 
-# Dominio de SERVICIOS (cutover 2026-07): api.todoconta.com sirve la API de
-# todoconta-apps directo, sin pasar por el proxy del espejo. Las versiones
-# desktop viejas (default app.todoconta.com) siguen funcionando porque el
-# espejo proxea /api/* hacia api.todoconta.com (rewrites de ui/vercel.json).
+# Dominio de SERVICIOS (cutover 2026-07): api.iustechconta.com sirve la API de
+# iustechconta-apps directo, sin pasar por el proxy del espejo. Las versiones
+# desktop viejas (default app.iustechconta.com) siguen funcionando porque el
+# espejo proxea /api/* hacia api.iustechconta.com (rewrites de ui/vercel.json).
 API_BASE_URL = os.environ.get(
-    "TODOCONTA_API_BASE_URL", "https://api.todoconta.com"
+    "TODOCONTA_API_BASE_URL", "https://api.iustechconta.com"
 ).rstrip("/")
 
 # Servicio (namespace) para los tokens de sesión en el backend de secretos.
-KEYRING_SERVICE = "com.todoconta.desktop"
+KEYRING_SERVICE = "com.iustechconta.desktop"
 KEYRING_USER = "session"  # un solo blob JSON
 
 # Path del cache local de license status.
@@ -389,7 +389,7 @@ def init_checkout(session: Session) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Suscripción anual de TodoConta Desktop (tarjeta, transferencia, cancelar)
+# Suscripción anual de IusTechConta Desktop (tarjeta, transferencia, cancelar)
 # ---------------------------------------------------------------------------
 
 

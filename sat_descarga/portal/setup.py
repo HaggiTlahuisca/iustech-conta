@@ -8,8 +8,8 @@ En el flujo empaquetado (PyInstaller `sat-agent.exe`), Chromium NO viaja
 adentro del binario (pesaría ~170 MB). En su lugar:
 
 1. Establecemos `PLAYWRIGHT_BROWSERS_PATH` apuntando a una carpeta del usuario
-   (`%LOCALAPPDATA%\\TodoConta\\playwright-browsers\\` en Windows,
-   `~/.cache/todoconta/playwright-browsers/` en macOS/Linux).
+   (`%LOCALAPPDATA%\\IusTechConta\\playwright-browsers\\` en Windows,
+   `~/.cache/iustechconta/playwright-browsers/` en macOS/Linux).
 2. Al arrancar el agente, `warmup_async()` descarga/actualiza los browsers en
    background; si un endpoint del portal llega antes, `asegurar_chromium()`
    bloquea hasta que estén listos.
@@ -54,23 +54,23 @@ def _browsers_dir() -> Path:
     """Carpeta donde se descarga Chromium para el agente empaquetado."""
     if sys.platform.startswith("win"):
         base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-        return Path(base) / "TodoConta" / "playwright-browsers"
+        return Path(base) / "IusTechConta" / "playwright-browsers"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Caches" / "TodoConta" / "playwright-browsers"
+        return Path.home() / "Library" / "Caches" / "IusTechConta" / "playwright-browsers"
     # Linux / otros
     cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(cache) / "todoconta" / "playwright-browsers"
+    return Path(cache) / "iustechconta" / "playwright-browsers"
 
 
 def _tmp_descarga_dir() -> Path:
-    """Carpeta temporal PROPIA (bajo el cache de TodoConta) para la descarga de
+    """Carpeta temporal PROPIA (bajo el cache de IusTechConta) para la descarga de
     Chromium, garantizada escribible.
 
     Playwright baja el zip al temp del sistema (`os.tmpdir()` de node). En apps en
     cuarentena / App Translocation / entornos restringidos de macOS ese temp puede
     dar `EACCES: permission denied` (visto en producción vía Sentry) y la descarga
     revienta. Apuntando TMPDIR a una carpeta nuestra dentro de ~/Library/Caches/
-    TodoConta evitamos depender del temp del sistema."""
+    IusTechConta evitamos depender del temp del sistema."""
     d = _browsers_dir().parent / "download-tmp"
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -284,7 +284,7 @@ def lanzar_chromium(playwright, **launch_kwargs):
             raise ErrorEsperado(
                 "No se pudo iniciar el navegador de descargas aunque se "
                 "reinstaló. Verifica tu conexión a internet y vuelve a "
-                "intentar; si persiste, reinstala TodoConta."
+                "intentar; si persiste, reinstala IusTechConta."
             ) from e2
 
 
@@ -331,12 +331,12 @@ def _instalar_chromium() -> None:
     cmd = _comando_install_chromium()
     if cmd is None:
         raise ErrorEsperado(
-            "No se pudo localizar el driver de Playwright. Reinstala TodoConta."
+            "No se pudo localizar el driver de Playwright. Reinstala IusTechConta."
         )
 
     env = os.environ.copy()
     if _path_externo:
-        # Cache compartido (no exclusivo de TodoConta): que la GC del install
+        # Cache compartido (no exclusivo de IusTechConta): que la GC del install
         # no borre revisiones que otros proyectos todavía usan.
         env["PLAYWRIGHT_SKIP_BROWSER_GC"] = "1"
 
@@ -381,7 +381,7 @@ def _instalar_chromium() -> None:
     raise ErrorEsperado(
         "La descarga de Chromium falló tras 2 intentos. Suele ser por una "
         "conexión intermitente o por ejecutar la app desde una carpeta "
-        "restringida: asegúrate de tener TodoConta en la carpeta Aplicaciones "
+        "restringida: asegúrate de tener IusTechConta en la carpeta Aplicaciones "
         "y reintenta.\n  " + (ultimo_detalle or "")
     )
 

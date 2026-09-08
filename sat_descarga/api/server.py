@@ -6,9 +6,10 @@ para iniciar descargas sin que la e-firma salga de la máquina del usuario.
 
 Arquitectura:
     [app.todoconta.com] ──── fetch(localhost:8787) ────→ [Python local]
-                                                                 │
-                                                         [SAT Web Service]
-                                                         [e-firma local]
+                                                           │
+                                                  [SAT Web Service]
+                                                           │
+                                                    [e-firma local]
 
 Los endpoints viven en routers por dominio (`api/routers/`): webservice, portal,
 empresas, procesador, utilidades y system. El estado de sesión y los helpers
@@ -58,7 +59,6 @@ from .routers import (
     utilidades_router,
     calculadoras_router,
     ce_router,
-    diot_router,
     tareas_router,
     system_router,
     descargas_router,
@@ -199,7 +199,6 @@ app.include_router(certifica_router)
 app.include_router(empresas_router)
 app.include_router(procesador_router)
 app.include_router(calculadoras_router)
-app.include_router(diot_router)
 app.include_router(ce_router)
 app.include_router(tareas_router)
 app.include_router(descargas_router)

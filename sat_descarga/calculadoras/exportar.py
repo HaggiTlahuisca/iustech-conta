@@ -2,7 +2,7 @@
 
 Cada calculadora construye un "documento" genérico (secciones de concepto/valor
 + tablas) y los renderers lo convierten a XLSX o PDF con los tokens de marca de
-TodoConta (mismos que ``sat_descarga/procesador/exportar.py``). PTU además
+IusTechConta (mismos que ``sat_descarga/procesador/exportar.py``). PTU además
 genera recibos imprimibles por trabajador (sustituye al ModuloRecibosPTU.bas de
 la plantilla Excel) y una hoja de pre-nómina para timbrado.
 
@@ -18,7 +18,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from .comunes import TIPOS_TERMINACION
 
-# Tokens de diseño TodoConta (alineados con ui/src/app/globals.css).
+# Tokens de diseño IusTechConta (alineados con ui/src/app/globals.css).
 _BRAND_PRIMARY = "0B5FFF"
 _BRAND_PRIMARY_RGB = (11, 95, 255)
 _BRAND_NAVY_RGB = (10, 22, 40)
@@ -435,7 +435,7 @@ def construir_documento(calculadora: str, resultado: dict, anio: int) -> dict:
         raise ValueError(f"Exportación no soportada para {calculadora!r}.")
     doc = _BUILDERS[calculadora](resultado)
     doc["titulo"] = TITULOS[calculadora]
-    doc["subtitulo"] = f"TodoConta · Ejercicio {anio}"
+    doc["subtitulo"] = f"IusTechConta · Ejercicio {anio}"
     doc.setdefault("advertencias", [])
     return doc
 
@@ -568,7 +568,7 @@ def _pdf_base(titulo: str, subtitulo: str):
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(*_BRAND_PRIMARY_RGB)
-    pdf.cell(0, 6, "TodoConta", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, "IusTechConta", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(*_BRAND_NAVY_RGB)
     pdf.cell(0, 9, _latin1(titulo), new_x="LMARGIN", new_y="NEXT")

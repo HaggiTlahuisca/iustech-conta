@@ -144,7 +144,7 @@ def _autocargar_empresa_default() -> None:
 
 
 def _descargas_base() -> str:
-    """Carpeta base de descargas configurada (default ~/Documents/TodoConta)."""
+    """Carpeta base de descargas configurada (default ~/Documents/IusTechConta)."""
     from ..cli import config_store
     return config_store.get_descargas_dir()
 
