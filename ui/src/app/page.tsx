@@ -24,7 +24,6 @@ export default function Home() {
         <p className="text-sm text-muted-foreground">
           Estamos preparando la nueva estación de trabajo fiscal y contable. Muy pronto habilitaremos el acceso general.
           <a href="/conectar" className="font-semibold text-primary underline underline-offset-4">
-            Conectar con mi espacio
           </a>
           .
         </p>
