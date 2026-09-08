@@ -23,7 +23,6 @@ from .metadata_cmd import metadata
 from .organizar import organizar_group
 from .listas_negras import listas_negras
 from .contabilidad import contabilidad
-from .diot import diot
 from .certifica import generar, renovar, solicitar, enviar, recuperar
 
 cli.add_command(empresas)
@@ -33,7 +32,6 @@ cli.add_command(validar)
 cli.add_command(metadata)
 cli.add_command(organizar_group)
 cli.add_command(listas_negras)
-cli.add_command(diot)
 cli.add_command(contabilidad)
 cli.add_command(generar)
 cli.add_command(renovar)

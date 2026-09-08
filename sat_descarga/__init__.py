@@ -11,7 +11,7 @@ Organizado por canal de acceso:
 - ``cli/``        : interfaz de línea de comandos (``sat-dm``).
 
 API pública estable:
-    from sat_descarga import descargar_cfdi, FIEL                       # Web Service
+    from sat_descarga import descargar_cfdi, FIEL                        # Web Service
     from sat_descarga import descargar_cfdi_ciec, descargar_cfdi_fiel   # portal (CFDIs)
     from sat_descarga import descargar_constancia_ciec, descargar_constancia_fiel
     from sat_descarga import descargar_opinion_ciec, descargar_opinion_fiel
@@ -65,14 +65,6 @@ from .calculadoras import (
     calcular_sbc,
 )
 
-# DIOT 2025: prellenado desde el procesador + export del TXT de carga masiva.
-from .diot import (
-    DiotInvalida,
-    exportar_txt as exportar_diot_txt,
-    prellenar_desde_procesador as prellenar_diot,
-    validar_filas as validar_filas_diot,
-)
-
 # Certifica: generación de solicitudes de e.firma (.req/.ren) y CSD (.sdg),
 # equivalente a la app oficial del SAT. Solo depende de `cryptography`.
 from .certifica import (
@@ -120,10 +112,6 @@ __all__ = [
     "SBCInput",
     "calcular_sbc",
     "calcular_isr_periodo",
-    "DiotInvalida",
-    "exportar_diot_txt",
-    "prellenar_diot",
-    "validar_filas_diot",
     "generar_requerimiento_fiel",
     "generar_renovacion_fiel",
     "generar_renovacion_fiel_moral",
