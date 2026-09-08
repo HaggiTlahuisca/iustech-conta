@@ -41,9 +41,6 @@ import { mensajeDeError } from '@/lib/errores';
 type Confirmacion = 'archive' | 'unarchive' | 'delete';
 type Vista = 'activas' | 'archivadas';
 
-// `useSearchParams` (lo usa EmpresasContenido para el alta por ⌘N) requiere
-// un <Suspense> envolvente bajo export estático — misma convención que
-// /empresas/detalle.
 export default function EmpresasPage() {
   return (
     <Suspense fallback={null}>
@@ -69,7 +66,6 @@ function EmpresasContenido() {
   const [busy, setBusy] = useState<string | null>(null);
   const [accionError, setAccionError] = useState<string | null>(null);
 
-  // Vista + filtros de la lista (todo client-side).
   const [vista, setVista] = useState<Vista>('activas');
   const [q, setQ] = useState('');
   const [tipo, setTipo] = useState<FiltroTipo>('todas');
@@ -79,9 +75,6 @@ function EmpresasContenido() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ⌘N (GlobalShortcuts) y "Agregar empresa…" del palette llegan como
-  // /empresas?alta=1: abre el alta y limpia el query para que back/reload
-  // no lo re-dispare.
   useEffect(() => {
     if (searchParams.get('alta') === '1') {
       setAddOpen(true);
@@ -140,7 +133,7 @@ function EmpresasContenido() {
       header: 'Régimen Fiscal',
       hideOnMobile: true,
       render: (e) => {
-        const regimenPrincipal = e.regimenes?.[0]?.nombre || 'Sin régimen registrado';
+        const regimenPrincipal = e.regimenes_fiscales?.[0]?.descripcion || 'Sin régimen registrado';
         return (
           <span className="truncate text-xs text-muted-foreground" title={regimenPrincipal}>
             {regimenPrincipal}
@@ -186,7 +179,6 @@ function EmpresasContenido() {
         <EmptyState onAdd={() => setAddOpen(true)} />
       ) : (
         <>
-          {/* Vista: activas / archivadas */}
           <div className="flex gap-1 border-b border-border">
             <VistaTab
               on={vista === 'activas'}
@@ -389,7 +381,6 @@ function EmpresaRowActions({
     <div className="inline-flex items-center gap-1">
       {!archived ? (
         <>
-          {/* Expediente fiscal: pantalla en camino — deshabilitado a propósito. */}
           <span title="Expediente fiscal (próximamente)">
             <Button variant="ghost" size="icon" disabled aria-label="Expediente fiscal (próximamente)">
               <Icon icon="ph:folder-light" className="size-4" />
