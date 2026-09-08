@@ -22,7 +22,7 @@ export default function Home() {
           Sitio en construcción, disculpe las molestias
         </h2>
         <p className="text-sm text-muted-foreground">
-          Estamos preparando la nueva estación de trabajo fiscal y contable. Muy pronto habilitaremos el acceso general. Si cuentas con los datos de tu espacio en la nube (URL y token), conéctate en{' '}
+          Estamos preparando la nueva estación de trabajo fiscal y contable. Muy pronto habilitaremos el acceso general.
           <a href="/conectar" className="font-semibold text-primary underline underline-offset-4">
             Conectar con mi espacio
           </a>
