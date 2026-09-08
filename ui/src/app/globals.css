@@ -4,12 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Custom fonts
-   Inter VARIABLE auto-hospedada en public/fonts/ (eje wght 100–900 + opsz).
-   Antes se cargaba un único woff2 ESTÁTICO de Inter Regular (peso 400) declarado
-   como `font-weight: 100 900`: el navegador asumía que ese archivo cubría todo el
-   rango y NO sintetizaba negritas, así que 600/700/800/900 se veían planos (= 400).
-   Self-host además evita depender de la red en la app empacada (Electron, offline). */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -68,94 +62,105 @@
 
 :root {
   --radius: 0.5rem;
-  /* Hover del botón cerrar en el titlebar custom de Windows: rojo del chrome
-   * nativo del SO (no es un token del design system — excepción documentada). */
   --win-close: #e81123;
-  /* TodoConta — Light (superficie web "cool gray"), sincronizado con todoconta-apps */
-  --background: #F7F9FC;
-  --foreground: #0A1628;
-  --card: #FFFFFF;
-  --card-foreground: #0A1628;
+  
+  /* IusTechConta — Light */
+  --background: #F5F6F2; /* Marfil frío */
+  --foreground: #202827; /* Grafito */
+  --card: #FFFFFF; /* Blanco cálido */
+  --card-foreground: #202827;
   --popover: #FFFFFF;
-  --popover-foreground: #0A1628;
-  /* Primary — Azul Legal */
-  --primary: #0B5FFF;
+  --popover-foreground: #202827;
+  
+  /* Primary — Verde petróleo */
+  --primary: #123C3A;
   --primary-foreground: #FFFFFF;
-  /* Accent IA — cian (reservado: IA/automatización; nunca decorativo) */
-  --accent-ai: #06B6D4;
-  /* Semánticos */
+  
+  /* Accent IA / Acento principal — Turquesa */
+  --accent-ai: #1FA6A0;
+  
+  /* Semánticos (Mantenemos verdes/rojos clásicos para no confundir al usuario) */
   --success: #059669;
   --success-foreground: #FFFFFF;
   --warning: #B45309;
   --warning-foreground: #FFFFFF;
   --destructive: #B91C1C;
   --destructive-foreground: #FFFFFF;
-  /* Neutrales */
-  --secondary: #F0F3F8;
-  --secondary-foreground: #0A1628;
-  --muted: #F0F3F8;
-  --muted-foreground: #56677F;
-  --accent: #EFF4FF;
-  --accent-foreground: #0848CC;
-  --border: #E5ECF4;
-  --input: #CFD9E6;
-  --ring: #0B5FFF;
+  
+  /* Neutrales y Acentos Secundarios */
+  --secondary: #E8ECEB;
+  --secondary-foreground: #123C3A;
+  --muted: #E8ECEB;
+  --muted-foreground: #65716F; /* Gris verdoso */
+  --accent: #E0F2F0; /* Tono turquesa ultra claro para hovers */
+  --accent-foreground: #123C3A;
+  --border: #D9E0DD; /* Bordes IusTech */
+  --input: #D9E0DD;
+  --ring: #1FA6A0; /* Anillos de selección en turquesa */
+  
   /* Charts */
-  --chart-1: #0B5FFF;
-  --chart-2: #059669;
-  --chart-3: #B45309;
-  --chart-4: #06B6D4;
-  --chart-5: #0848CC;
+  --chart-1: #123C3A;
+  --chart-2: #1FA6A0;
+  --chart-3: #73C7B9;
+  --chart-4: #172322;
+  --chart-5: #65716F;
+  
   /* Sidebar */
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #0A1628;
-  --sidebar-primary: #0B5FFF;
+  --sidebar-foreground: #202827;
+  --sidebar-primary: #123C3A;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EFF4FF;
-  --sidebar-accent-foreground: #0848CC;
-  --sidebar-border: #E5ECF4;
-  --sidebar-ring: #0B5FFF;
+  --sidebar-accent: #E0F2F0;
+  --sidebar-accent-foreground: #123C3A;
+  --sidebar-border: #D9E0DD;
+  --sidebar-ring: #1FA6A0;
 }
 
 .dark {
-  /* TodoConta — Dark (compartido) */
-  --background: #101922;
-  --foreground: #FFFFFF;
-  --card: #1a2632;
+  /* IusTechConta — Dark */
+  --background: #172322; /* Grafito verdoso */
+  --foreground: #F5F6F2;
+  --card: #1B2928; /* Ligeramente más claro que el fondo */
   --card-foreground: #FFFFFF;
-  --popover: #1a2632;
+  --popover: #1B2928;
   --popover-foreground: #FFFFFF;
-  --primary: #3b82f6;
+  
+  /* En modo oscuro, el Turquesa funciona mejor como primario por el contraste */
+  --primary: #1FA6A0; 
   --primary-foreground: #FFFFFF;
-  --accent-ai: #22D3EE;
+  --accent-ai: #73C7B9; /* Verde menta */
+  
   --success: #34d399;
-  --success-foreground: #0A1628;
+  --success-foreground: #172322;
   --warning: #fbbf24;
-  --warning-foreground: #0A1628;
+  --warning-foreground: #172322;
   --destructive: #f87171;
-  --destructive-foreground: #0A1628;
-  --secondary: #2a3b4d;
+  --destructive-foreground: #172322;
+  
+  --secondary: #263635;
   --secondary-foreground: #FFFFFF;
-  --muted: #2a3b4d;
-  --muted-foreground: #9fb3c8;
-  --accent: #21304a;
-  --accent-foreground: #cfe0ff;
-  --border: #2a3b4d;
-  --input: #374151;
-  --ring: #3b82f6;
-  --chart-1: #3b82f6;
-  --chart-2: #34d399;
+  --muted: #263635;
+  --muted-foreground: #8A9B99;
+  --accent: #263635;
+  --accent-foreground: #73C7B9; /* Verde menta en hover */
+  --border: #2E403F;
+  --input: #2E403F;
+  --ring: #1FA6A0;
+  
+  --chart-1: #1FA6A0;
+  --chart-2: #73C7B9;
   --chart-3: #fbbf24;
-  --chart-4: #22d3ee;
-  --chart-5: #60a5fa;
-  --sidebar: #1a2632;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #3b82f6;
+  --chart-4: #8A9B99;
+  --chart-5: #FFFFFF;
+  
+  --sidebar: #172322;
+  --sidebar-foreground: #F5F6F2;
+  --sidebar-primary: #1FA6A0;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #21304a;
-  --sidebar-accent-foreground: #cfe0ff;
-  --sidebar-border: #2a3b4d;
-  --sidebar-ring: #3b82f6;
+  --sidebar-accent: #263635;
+  --sidebar-accent-foreground: #73C7B9;
+  --sidebar-border: #2E403F;
+  --sidebar-ring: #1FA6A0;
 }
 
 @layer base {
@@ -166,20 +171,12 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
-  /* En Electron la Titlebar tiene -webkit-app-region:drag y captura los
-   * clicks de cualquier elemento encima (incluso con z-index alto). Los
-   * toasts de sonner (top-right) y los popovers caen sobre esa franja, así
-   * que les forzamos no-drag para que sus botones reciban el click. */
   [data-sonner-toaster],
   [data-sonner-toaster] *,
   [data-radix-popper-content-wrapper],
   [data-radix-popper-content-wrapper] * {
     -webkit-app-region: no-drag;
   }
-  /* Los Dialog no usan popper wrapper y su overlay cubre TODA la ventana,
-   * incluida la franja drag de la Titlebar: sin no-drag, el click para
-   * cerrar un diálogo (p. ej. el command palette) a esa altura arrastra la
-   * ventana en vez de cerrarlo. */
   [data-slot='dialog-overlay'],
   [data-slot='dialog-content'],
   [data-slot='dialog-content'] * {
