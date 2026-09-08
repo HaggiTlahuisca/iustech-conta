@@ -9,8 +9,8 @@ import { AppShell } from '@/components/layout/app-shell';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export const metadata: Metadata = {
-  title: 'TodoConta',
-  description: 'TodoConta — descarga masiva de CFDIs y trámites del SAT',
+  title: 'IusTechConta',
+  description: 'IusTechConta — descarga masiva de XML/CFDIS y herramientas contables y fiscales',
 };
 
 export default function RootLayout({
