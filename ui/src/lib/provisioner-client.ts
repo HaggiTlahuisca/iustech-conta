@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Cliente de autenticación web (Supabase Auth directo):
-// Envía y verifica códigos OTP de 6 dígitos y contraseñas directo contra Supabase.
+// Envía y verifica códigos OTP de 6 dígitos, contraseñas y guarda perfiles.
 // ---------------------------------------------------------------------------
 
 const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
@@ -21,6 +21,17 @@ export interface ProvisionResult {
   base_url: string;
   token: string;
   session: SesionProvisionada;
+}
+
+export interface DatosPerfilRegistro {
+  tipo_persona: 'fisica' | 'moral';
+  nombres?: string | null;
+  primer_apellido?: string | null;
+  segundo_apellido?: string | null;
+  razon_social?: string | null;
+  rfc: string;
+  telefono: string;
+  correo: string;
 }
 
 export class ProvisionerError extends Error {
@@ -244,6 +255,40 @@ export async function provisionOtpVerify(
     token: data.access_token ?? '',
     session,
   };
+}
+
+export async function guardarPerfilSupabase(
+  token: string,
+  userId: string,
+  perfil: DatosPerfilRegistro,
+): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !token) return;
+
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/perfiles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({
+        id: userId,
+        tipo_persona: perfil.tipo_persona,
+        nombres: perfil.nombres ?? null,
+        primer_apellido: perfil.primer_apellido ?? null,
+        segundo_apellido: perfil.segundo_apellido ?? null,
+        razon_social: perfil.razon_social ?? null,
+        rfc: perfil.rfc.trim().toUpperCase(),
+        telefono: perfil.telefono.trim(),
+        correo: perfil.correo.trim().toLowerCase(),
+        actualizado_el: new Date().toISOString(),
+      }),
+    });
+  } catch (e) {
+    console.warn('Error al guardar el perfil en Supabase:', e);
+  }
 }
 
 export function provisionConToken(
