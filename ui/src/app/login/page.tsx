@@ -24,7 +24,9 @@ import {
   provisionSignup,
   provisionOtpSend,
   provisionOtpVerify,
+  guardarPerfilSupabase,
   type ProvisionResult,
+  type DatosPerfilRegistro,
 } from '@/lib/provisioner-client';
 import { mensajeDeError } from '@/lib/errores';
 import { cn } from '@/lib/utils';
@@ -32,12 +34,6 @@ import { cn } from '@/lib/utils';
 type Vista = 'login' | 'signup';
 type Metodo = 'password' | 'codigo';
 type Paso = 'form' | 'otp' | 'done';
-
-interface OtpContexto {
-  tipo: 'email' | 'signup';
-  crearCuenta: boolean;
-  nombre: string;
-}
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
@@ -74,7 +70,6 @@ export default function LoginPage() {
   const adoptarYConectar = useCallback(
     async (r: ProvisionResult) => {
       conectar({ baseUrl: r.base_url, token: r.token });
-      // Si el agente corre en un servidor o puerto distinto a la web, sincronizamos la sesión
       if (typeof window !== 'undefined' && r.base_url && !r.base_url.includes(window.location.host)) {
         try {
           const cliente = new SatApiClient(r.base_url);
@@ -90,15 +85,18 @@ export default function LoginPage() {
   const [vista, setVista] = useState<Vista>('login');
   const [metodo, setMetodo] = useState<Metodo>('codigo');
   const [paso, setPaso] = useState<Paso>('form');
-  const [otpCtx, setOtpCtx] = useState<OtpContexto>({
-    tipo: 'email',
-    crearCuenta: false,
-    nombre: '',
-  });
 
+  // Campos de registro detallado
+  const [nombres, setNombres] = useState('');
+  const [primerApellido, setPrimerApellido] = useState('');
+  const [segundoApellido, setSegundoApellido] = useState('');
+  const [razonSocial, setRazonSocial] = useState('');
+  const [rfc, setRfc] = useState('');
+  const [telefono, setTelefono] = useState('');
+
+  // Credenciales
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nombre, setNombre] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +106,18 @@ export default function LoginPage() {
 
   const esLogin = vista === 'login';
   const esPwd = metodo === 'password';
+
+  // Lógica de inhabilitación mutua entre persona física y moral
+  const tieneDatosFisica =
+    nombres.trim().length > 0 ||
+    primerApellido.trim().length > 0 ||
+    segundoApellido.trim().length > 0;
+  const tieneDatosMoral = razonSocial.trim().length > 0;
+
+  const esMoral = tieneDatosMoral;
+  const esFisica = tieneDatosFisica;
+
+  const rfcLongitudEsperada = esMoral ? 12 : 13;
 
   const cambiarVista = useCallback((v: Vista) => {
     setVista(v);
@@ -186,25 +196,47 @@ export default function LoginPage() {
   );
 
   const enviarOtp = useCallback(
-    async (correo: string, opts: { crearCuenta?: boolean; nombre?: string } = {}) => {
+    async (correo: string) => {
       if (webNecesitaProvision) {
         await provisionOtpSend(correo);
       } else {
-        await apiClient.authOtpSend(correo, opts);
+        await apiClient.authOtpSend(correo, { crearCuenta: !esLogin });
       }
     },
-    [webNecesitaProvision, apiClient],
+    [webNecesitaProvision, apiClient, esLogin],
+  );
+
+  const guardarDatosPerfil = useCallback(
+    async (token: string, userId: string) => {
+      const tipo_persona = esMoral ? 'moral' : 'fisica';
+      const datos: DatosPerfilRegistro = {
+        tipo_persona,
+        nombres: tipo_persona === 'fisica' ? nombres.trim() : null,
+        primer_apellido: tipo_persona === 'fisica' ? primerApellido.trim() : null,
+        segundo_apellido: tipo_persona === 'fisica' ? segundoApellido.trim() : null,
+        razon_social: tipo_persona === 'moral' ? razonSocial.trim() : null,
+        rfc: rfc.trim().toUpperCase(),
+        telefono: telefono.trim(),
+        correo: email.trim().toLowerCase(),
+      };
+      await guardarPerfilSupabase(token, userId, datos);
+    },
+    [esMoral, nombres, primerApellido, segundoApellido, razonSocial, rfc, telefono, email],
   );
 
   const verificarOtp = useCallback(
-    async (correo: string, codigo: string, tipo: 'email' | 'signup') => {
+    async (correo: string, codigo: string) => {
       if (webNecesitaProvision) {
-        await adoptarYConectar(await provisionOtpVerify(correo, codigo));
+        const r = await provisionOtpVerify(correo, codigo);
+        if (!esLogin && r.session.access_token && r.session.user_id) {
+          await guardarDatosPerfil(r.session.access_token, r.session.user_id);
+        }
+        await adoptarYConectar(r);
       } else {
-        await apiClient.authOtpVerify(correo, codigo, tipo);
+        await apiClient.authOtpVerify(correo, codigo, esLogin ? 'email' : 'signup');
       }
     },
-    [webNecesitaProvision, adoptarYConectar, apiClient],
+    [webNecesitaProvision, esLogin, guardarDatosPerfil, adoptarYConectar, apiClient],
   );
 
   const submit = useCallback(
@@ -212,11 +244,43 @@ export default function LoginPage() {
       e.preventDefault();
       const correo = email.trim();
       if (!EMAIL_RE.test(correo)) {
-        setError('Escribe un correo válido.');
+        setError('Escribe un correo electrónico válido.');
         return;
       }
+
+      if (!esLogin) {
+        if (!tieneDatosFisica && !tieneDatosMoral) {
+          setError('Llena tu nombre y apellidos o la razón social de tu despacho.');
+          return;
+        }
+        if (tieneDatosFisica) {
+          if (!nombres.trim() || !primerApellido.trim() || !segundoApellido.trim()) {
+            setError('Para persona física, ingresa nombre(s), primer apellido y segundo apellido.');
+            return;
+          }
+        }
+        if (tieneDatosMoral && !razonSocial.trim()) {
+          setError('Escribe la razón social de la empresa o despacho.');
+          return;
+        }
+
+        const rfcLimpio = rfc.trim().toUpperCase();
+        if (rfcLimpio.length !== rfcLongitudEsperada) {
+          setError(
+            `El RFC para persona ${esMoral ? 'moral' : 'física'} debe tener exactamente ${rfcLongitudEsperada} caracteres.`,
+          );
+          return;
+        }
+
+        if (telefono.replace(/\D/g, '').length < 10) {
+          setError('Ingresa un número de celular a 10 dígitos.');
+          return;
+        }
+      }
+
       setError(null);
       setLoading(true);
+
       try {
         if (esLogin && esPwd) {
           if (!password) {
@@ -227,37 +291,35 @@ export default function LoginPage() {
           setPaso('done');
         } else if (esLogin) {
           await enviarOtp(correo);
-          setOtpCtx({ tipo: 'email', crearCuenta: false, nombre: '' });
           setPaso('otp');
         } else if (esPwd) {
           if (password.length < 8) {
             setError('La contraseña debe tener mínimo 8 caracteres.');
             return;
           }
+          const nombreCompleto = esMoral
+            ? razonSocial.trim()
+            : `${nombres.trim()} ${primerApellido.trim()} ${segundoApellido.trim()}`.trim();
+
           if (webNecesitaProvision) {
-            const r = await provisionSignup(correo, password, nombre.trim());
+            const r = await provisionSignup(correo, password, nombreCompleto);
             if (r.requiere_confirmacion) {
-              setOtpCtx({ tipo: 'signup', crearCuenta: false, nombre: nombre.trim() });
               setPaso('otp');
             } else if (r.result) {
+              await guardarDatosPerfil(r.result.session.access_token, r.result.session.user_id);
               await adoptarYConectar(r.result);
               setPaso('done');
             }
           } else {
-            const r = await apiClient.authSignup(correo, password, nombre.trim());
+            const r = await apiClient.authSignup(correo, password, nombreCompleto);
             if (r.requiere_confirmacion) {
-              setOtpCtx({ tipo: 'signup', crearCuenta: false, nombre: nombre.trim() });
               setPaso('otp');
             } else {
               setPaso('done');
             }
           }
         } else {
-          await enviarOtp(correo, {
-            crearCuenta: true,
-            nombre: nombre.trim(),
-          });
-          setOtpCtx({ tipo: 'email', crearCuenta: true, nombre: nombre.trim() });
+          await enviarOtp(correo);
           setPaso('otp');
         }
       } catch (err) {
@@ -266,25 +328,41 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [apiClient, email, password, nombre, esLogin, esPwd, loginConPassword, enviarOtp, webNecesitaProvision, adoptarYConectar],
+    [
+      email,
+      esLogin,
+      tieneDatosFisica,
+      tieneDatosMoral,
+      nombres,
+      primerApellido,
+      segundoApellido,
+      razonSocial,
+      rfc,
+      rfcLongitudEsperada,
+      esMoral,
+      telefono,
+      esPwd,
+      password,
+      loginConPassword,
+      enviarOtp,
+      webNecesitaProvision,
+      guardarDatosPerfil,
+      adoptarYConectar,
+      apiClient,
+    ],
   );
 
   return (
-    <div className="flex min-h-full justify-center bg-background px-6 pb-10 pt-14">
-      <div className="w-full max-w-96">
+    <div className="flex min-h-full justify-center bg-background px-6 pb-10 pt-10">
+      <div className="w-full max-w-lg">
         {paso === 'done' ? (
           <DoneStep esLogin={esLogin} />
         ) : paso === 'otp' ? (
           <OtpStep
             email={email.trim()}
             esLogin={esLogin}
-            verificar={(codigo) => verificarOtp(email.trim(), codigo, otpCtx.tipo)}
-            reenviar={async () => {
-              await enviarOtp(email.trim(), {
-                crearCuenta: otpCtx.crearCuenta,
-                nombre: otpCtx.nombre,
-              });
-            }}
+            verificar={(codigo) => verificarOtp(email.trim(), codigo)}
+            reenviar={() => enviarOtp(email.trim())}
             onVolver={() => {
               setPaso('form');
               setError(null);
@@ -294,27 +372,112 @@ export default function LoginPage() {
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
             <Marca />
-            <h1 className="mb-8 text-center">
+            <h1 className="mb-6 text-center">
               <span className="block text-[26px] font-bold leading-[1.22] tracking-[-0.02em] text-foreground">
-                {esLogin ? 'Bienvenido de vuelta.' : 'Crea tu cuenta.'}
+                {esLogin ? 'Bienvenido de vuelta.' : 'Crea tu cuenta de despacho.'}
               </span>
-              <span className="block text-[26px] font-bold leading-[1.22] tracking-[-0.02em] text-muted-foreground/70">
-                {esLogin ? 'Inicia sesión en IusTechConta' : 'Empieza gratis con IusTechConta'}
+              <span className="block text-[15px] font-medium leading-relaxed text-muted-foreground">
+                {esLogin
+                  ? 'Inicia sesión en IusTechConta'
+                  : 'Regístrate como persona física o moral para empezar'}
               </span>
             </h1>
 
             <form onSubmit={submit} noValidate>
               {!esLogin && (
-                <Campo label="Nombre completo" htmlFor="login-nombre">
-                  <TxtInput
-                    id="login-nombre"
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Tu nombre"
-                    value={nombre}
-                    onChange={(v) => setNombre(v)}
-                  />
-                </Campo>
+                <div className="space-y-4 mb-4 rounded-xl border border-border/80 bg-card/50 p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Datos del titular o despacho
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Campo label="Nombre(s)" htmlFor="reg-nombres">
+                      <TxtInput
+                        id="reg-nombres"
+                        disabled={tieneDatosMoral}
+                        placeholder="Ej. Juan Carlos"
+                        value={nombres}
+                        onChange={(v) => setNombres(v)}
+                      />
+                    </Campo>
+                    <Campo label="Primer apellido" htmlFor="reg-ap1">
+                      <TxtInput
+                        id="reg-ap1"
+                        disabled={tieneDatosMoral}
+                        placeholder="Ej. Pérez"
+                        value={primerApellido}
+                        onChange={(v) => setPrimerApellido(v)}
+                      />
+                    </Campo>
+                    <Campo label="Segundo apellido" htmlFor="reg-ap2">
+                      <TxtInput
+                        id="reg-ap2"
+                        disabled={tieneDatosMoral}
+                        placeholder="Ej. López"
+                        value={segundoApellido}
+                        onChange={(v) => setSegundoApellido(v)}
+                      />
+                    </Campo>
+                  </div>
+
+                  <div className="relative my-2 flex items-center justify-center">
+                    <span className="absolute inset-x-0 h-px bg-border/60" />
+                    <span className="relative bg-card px-2.5 text-[11px] font-semibold text-muted-foreground">
+                      O bien, razón social
+                    </span>
+                  </div>
+
+                  <Campo
+                    label="Razón social"
+                    htmlFor="reg-razon"
+                    help={
+                      tieneDatosFisica
+                        ? 'Inhabilitado porque ingresaste nombre y apellidos de persona física.'
+                        : undefined
+                    }
+                  >
+                    <TxtInput
+                      id="reg-razon"
+                      disabled={tieneDatosFisica}
+                      placeholder="Ej. Despacho Contable Fiscal SC"
+                      value={razonSocial}
+                      onChange={(v) => setRazonSocial(v)}
+                    />
+                  </Campo>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Campo
+                      label={`RFC (${rfcLongitudEsperada} caracteres)`}
+                      htmlFor="reg-rfc"
+                      help={
+                        esMoral
+                          ? 'RFC de persona moral (12 caracteres)'
+                          : 'RFC de persona física (13 caracteres)'
+                      }
+                    >
+                      <TxtInput
+                        id="reg-rfc"
+                        placeholder={esMoral ? 'AAA010101AAA' : 'AAAA010101AAA'}
+                        value={rfc}
+                        maxLength={rfcLongitudEsperada}
+                        onChange={(v) =>
+                          setRfc(v.toUpperCase().replace(/[^A-Z0-9&Ñ]/g, '').slice(0, rfcLongitudEsperada))
+                        }
+                      />
+                    </Campo>
+
+                    <Campo label="Número de celular" htmlFor="reg-tel">
+                      <TxtInput
+                        id="reg-tel"
+                        type="tel"
+                        placeholder="10 dígitos"
+                        value={telefono}
+                        maxLength={10}
+                        onChange={(v) => setTelefono(v.replace(/\D/g, '').slice(0, 10))}
+                      />
+                    </Campo>
+                  </div>
+                </div>
               )}
 
               <Campo
@@ -323,8 +486,8 @@ export default function LoginPage() {
                 help={
                   !esPwd
                     ? esLogin
-                      ? 'Te enviaremos un código de acceso de un solo uso a tu correo.'
-                      : 'Te enviaremos un código para confirmar tu correo.'
+                      ? 'Te enviaremos un código de acceso de 6 dígitos a tu correo.'
+                      : 'Te enviaremos un código de 6 dígitos para confirmar tu correo.'
                     : undefined
                 }
               >
@@ -464,12 +627,12 @@ export default function LoginPage() {
               </p>
               <p className="mt-7 border-t border-border/60 pt-5 text-xs leading-relaxed text-muted-foreground/80">
                 {esLogin ? 'Al continuar' : 'Al crear tu cuenta'}, aceptas los{' '}
-                <LinkExterno href="https://iustechconta.com/tyc">
+                <LinkExterno href="https://iustechconta.com/terminos">
                   Términos y condiciones
                 </LinkExterno>{' '}
-                y el{' '}
-                <LinkExterno href="https://iustechconta.com/aviso">
-                  Aviso de privacidad
+                y la{' '}
+                <LinkExterno href="https://iustechconta.com/privacidad">
+                  Política de privacidad
                 </LinkExterno>{' '}
                 de IusTechConta.
               </p>
@@ -670,16 +833,16 @@ function Campo({
   children: ReactNode;
 }) {
   return (
-    <div className="mb-4.5">
+    <div className="mb-2">
       <label
         htmlFor={htmlFor}
-        className="mb-2 block text-[13px] font-semibold text-foreground"
+        className="mb-1.5 block text-[13px] font-semibold text-foreground"
       >
         {label}
       </label>
       {children}
       {help && (
-        <p className="mt-2 px-0.5 text-xs leading-normal text-muted-foreground/80">{help}</p>
+        <p className="mt-1 px-0.5 text-xs leading-normal text-muted-foreground/80">{help}</p>
       )}
     </div>
   );
@@ -688,6 +851,7 @@ function Campo({
 function TxtInput({
   onChange,
   className,
+  disabled,
   ...rest
 }: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'className'> & {
   onChange: (value: string) => void;
@@ -696,8 +860,10 @@ function TxtInput({
   return (
     <input
       {...rest}
+      disabled={disabled}
       className={cn(
-        'h-11.5 w-full rounded-lg border border-input bg-card px-3.5 text-[15px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 focus:border-primary focus:ring-[3px] focus:ring-primary/15 dark:bg-secondary',
+        'h-11 w-full rounded-lg border border-input bg-card px-3.5 text-[14.5px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 focus:border-primary focus:ring-[3px] focus:ring-primary/15 dark:bg-secondary',
+        disabled && 'cursor-not-allowed opacity-40 bg-muted/60',
         className,
       )}
       onChange={(e) => onChange(e.target.value)}
@@ -723,7 +889,7 @@ function BotonPrimario({
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
-      className="mt-1.5 flex h-11.5 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-55"
+      className="mt-3 flex h-11.5 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-55"
     >
       {loading ? (
         <Icon icon="ph:circle-notch-light" className="size-4 animate-spin" />
