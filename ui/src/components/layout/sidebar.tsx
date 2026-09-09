@@ -30,16 +30,19 @@ function NavItem({
   icon,
   active,
   collapsed,
+  onClick,
 }: {
   href: string;
   label: string;
   icon: string;
   active: boolean;
   collapsed: boolean;
+  onClick?: () => void;
 }) {
   const link = (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         'relative flex items-center gap-3 rounded-lg text-[13.5px] font-medium transition-colors',
         collapsed ? 'size-11 justify-center' : 'px-3 py-2',
@@ -70,10 +73,21 @@ function NavItem({
 }
 
 /** Abre el command palette (⌘K); muestra el atajo como kbd cuando hay espacio. */
-function BuscarItem({ collapsed, mac }: { collapsed: boolean; mac: boolean }) {
+function BuscarItem({
+  collapsed,
+  mac,
+  onClick,
+}: {
+  collapsed: boolean;
+  mac: boolean;
+  onClick?: () => void;
+}) {
   const boton = (
     <button
-      onClick={() => window.dispatchEvent(new Event(EVENTO_PALETTE_OPEN))}
+      onClick={() => {
+        onClick?.();
+        window.dispatchEvent(new Event(EVENTO_PALETTE_OPEN));
+      }}
       className={cn(
         'flex items-center gap-3 rounded-lg text-[13.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
         collapsed ? 'size-11 justify-center' : 'w-full px-3 py-2',
@@ -102,12 +116,17 @@ function BuscarItem({ collapsed, mac }: { collapsed: boolean; mac: boolean }) {
   );
 }
 
+export interface SidebarProps {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
+
 /**
  * Sidebar v2: marca + selector de empresa + nav plano + footer (Ayuda y
  * cuenta). Colapsable a modo solo-iconos; el estado persiste en localStorage.
- * La conexión y el semáforo de e.firma viven en la barra de estado inferior.
+ * En móviles se comporta como un menú lateral deslizante (drawer).
  */
-export function Sidebar() {
+export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   // Símbolo del atajo (⌘K vs Ctrl+K); post-mount, depende de window.
@@ -134,93 +153,143 @@ export function Sidebar() {
     return () => window.removeEventListener(EVENTO_SIDEBAR_TOGGLE, onToggle);
   }, []);
 
+  // Al navegar a otra ruta, cerramos el drawer en móvil
+  useEffect(() => {
+    if (mobileOpen && onClose) {
+      onClose();
+    }
+  }, [pathname]);
+
   return (
-    <aside
-      className={cn(
-        'hidden shrink-0 border-r bg-sidebar transition-[width] duration-200 md:flex md:flex-col',
-        collapsed ? 'w-17' : 'w-62',
-      )}
-    >
-      {/* Marca */}
-      <div
-        className={cn(
-          'flex items-center gap-2.5 pb-3 pt-4',
-          collapsed ? 'justify-center px-0' : 'px-3.5',
-        )}
-      >
-        <BrandMark
-          iconOnly={collapsed}
-          className={cn(!collapsed && 'min-w-0 flex-1')}
+    <>
+      {/* Fondo oscuro al abrir el menú en móviles */}
+      {mobileOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
+          aria-hidden="true"
         />
-        {!collapsed && (
-          <button
-            onClick={toggleCollapsed}
-            title="Colapsar menú"
-            className="flex size-7.5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Icon icon="ph:sidebar-simple-light" className="size-4.5" />
-          </button>
-        )}
-      </div>
-
-      {/* Botón de expandir (solo colapsado, debajo de la marca) */}
-      {collapsed && (
-        <div className="flex justify-center pb-1">
-          <button
-            onClick={toggleCollapsed}
-            title="Expandir menú"
-            className="flex size-7.5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Icon icon="ph:sidebar-simple-light" className="size-4.5" />
-          </button>
-        </div>
       )}
 
-      {/* Selector de empresa */}
-      <div className={cn('pb-3', collapsed ? 'flex justify-center px-0' : 'px-3')}>
-        <EmpresaSwitcher collapsed={collapsed} />
-      </div>
-
-      {/* Buscar (⌘K): descubribilidad del command palette. */}
-      <div className={cn('pb-1', collapsed ? 'flex justify-center px-2.5' : 'px-3')}>
-        <BuscarItem collapsed={collapsed} mac={mac} />
-      </div>
-
-      {/* Navegación */}
-      <nav
+      <aside
         className={cn(
-          'flex flex-1 flex-col gap-0.5 overflow-y-auto py-1',
-          collapsed ? 'items-center px-2.5' : 'px-3',
+          'shrink-0 border-r bg-sidebar transition-[width,transform] duration-200',
+          // Desktop: colapsable de 62 a 17
+          'hidden md:flex md:flex-col',
+          collapsed ? 'md:w-17' : 'md:w-62',
+          // Móvil: drawer flotante z-50
+          mobileOpen &&
+            'fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-sidebar shadow-2xl md:static md:shadow-none',
         )}
       >
-        {NAV_ITEMS.map(({ href, label, icon }) => (
-          <NavItem
-            key={href}
-            href={href}
-            label={label}
-            icon={icon}
-            collapsed={collapsed}
-            active={href === '/' ? pathname === '/' : pathname.startsWith(href)}
+        {/* Marca */}
+        <div
+          className={cn(
+            'flex items-center gap-2.5 pb-3 pt-4',
+            collapsed && !mobileOpen ? 'justify-center px-0' : 'px-3.5',
+          )}
+        >
+          <BrandMark
+            iconOnly={collapsed && !mobileOpen}
+            className={cn((!collapsed || mobileOpen) && 'min-w-0 flex-1')}
           />
-        ))}
-      </nav>
+          {/* Botón de cerrar en móvil */}
+          {mobileOpen && (
+            <button
+              onClick={onClose}
+              type="button"
+              title="Cerrar menú"
+              className="flex size-7.5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
+            >
+              <Icon icon="ph:x-light" className="size-5" />
+            </button>
+          )}
+          {!collapsed && !mobileOpen && (
+            <button
+              onClick={toggleCollapsed}
+              title="Colapsar menú"
+              className="hidden size-7.5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:flex"
+            >
+              <Icon icon="ph:sidebar-simple-light" className="size-4.5" />
+            </button>
+          )}
+        </div>
 
-      {/* Footer: Ayuda + cuenta */}
-      <div
-        className={cn(
-          'flex flex-col gap-1 border-t py-2.5',
-          collapsed ? 'items-center px-2.5' : 'px-3',
+        {/* Botón de expandir (solo colapsado, debajo de la marca) */}
+        {collapsed && !mobileOpen && (
+          <div className="hidden justify-center pb-1 md:flex">
+            <button
+              onClick={toggleCollapsed}
+              title="Expandir menú"
+              className="flex size-7.5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Icon icon="ph:sidebar-simple-light" className="size-4.5" />
+            </button>
+          </div>
         )}
-      >
-        <NavItem
-          href="/ayuda"
-          label="Ayuda"
-          icon="ph:question-light"
-          collapsed={collapsed}
-          active={pathname.startsWith('/ayuda')}
-        />
-        <AccountMenu collapsed={collapsed} />
-      </div>
-    </aside>
+
+        {/* Selector de empresa */}
+        <div
+          className={cn(
+            'pb-3',
+            collapsed && !mobileOpen ? 'flex justify-center px-0' : 'px-3',
+          )}
+        >
+          <EmpresaSwitcher collapsed={collapsed && !mobileOpen} />
+        </div>
+
+        {/* Buscar (⌘K): descubribilidad del command palette. */}
+        <div
+          className={cn(
+            'pb-1',
+            collapsed && !mobileOpen ? 'flex justify-center px-2.5' : 'px-3',
+          )}
+        >
+          <BuscarItem
+            collapsed={collapsed && !mobileOpen}
+            mac={mac}
+            onClick={mobileOpen ? onClose : undefined}
+          />
+        </div>
+
+        {/* Navegación */}
+        <nav
+          className={cn(
+            'flex flex-1 flex-col gap-0.5 overflow-y-auto py-1',
+            collapsed && !mobileOpen ? 'items-center px-2.5' : 'px-3',
+          )}
+        >
+          {NAV_ITEMS.map(({ href, label, icon }) => (
+            <NavItem
+              key={href}
+              href={href}
+              label={label}
+              icon={icon}
+              collapsed={collapsed && !mobileOpen}
+              active={href === '/' ? pathname === '/' : pathname.startsWith(href)}
+              onClick={mobileOpen ? onClose : undefined}
+            />
+          ))}
+        </nav>
+
+        {/* Footer: Ayuda + cuenta */}
+        <div
+          className={cn(
+            'flex flex-col gap-1 border-t py-2.5',
+            collapsed && !mobileOpen ? 'items-center px-2.5' : 'px-3',
+          )}
+        >
+          <NavItem
+            href="/ayuda"
+            label="Ayuda"
+            icon="ph:question-light"
+            collapsed={collapsed && !mobileOpen}
+            active={pathname.startsWith('/ayuda')}
+            onClick={mobileOpen ? onClose : undefined}
+          />
+          <AccountMenu collapsed={collapsed && !mobileOpen} />
+        </div>
+      </aside>
+    </>
   );
 }

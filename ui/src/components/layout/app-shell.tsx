@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { esWeb } from '@/lib/modo';
@@ -33,6 +33,7 @@ export function AppShell({ children }: AppShellProps) {
   // entrada manual al agente (piloto/soporte) cuando aún no hay conexión.
   const pathname = usePathname();
   const esConectar = esWeb() && !!pathname && pathname.startsWith('/conectar');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (loading && !esConectar) {
     return (
@@ -58,13 +59,16 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Titlebar />
+      <Titlebar onToggleMenu={() => setMobileMenuOpen((v) => !v)} />
       {/* La ventana de fundadores cerró y no vuelve: el FounderBanner se
           eliminó (2026-07). PromoBanner es la campaña activa. */}
       <PromoBanner />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
+        <Sidebar
+          mobileOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+        />
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
       </div>
       <StatusBar />
       {/* Atajos de teclado + command palette: solo con sesión iniciada. */}
