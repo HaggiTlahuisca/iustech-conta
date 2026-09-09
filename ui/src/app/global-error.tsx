@@ -1,11 +1,5 @@
 'use client';
 
-// Fallback catastrófico (App Router): solo se activa si el ERROR ocurre en el
-// layout raíz o en los providers, donde `error.tsx` ya no puede renderizarse.
-// Reemplaza todo el shell, así que debe traer sus propios <html>/<body>. Estilo
-// inline (sin Tailwind/componentes) porque no asumimos que el CSS de la app
-// haya cargado. Para errores de página normales, ver `error.tsx`.
-
 import { useEffect } from 'react';
 
 import { capturarExcepcion } from '@/lib/telemetria';
@@ -28,8 +22,8 @@ export default function GlobalError({
         style={{
           margin: 0,
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          background: '#F7F9FC',
-          color: '#1f2937',
+          background: '#F5F6F2', /* Marfil Frío IusTech */
+          color: '#202827', /* Grafito IusTech */
           display: 'flex',
           minHeight: '100vh',
           alignItems: 'center',
@@ -40,7 +34,7 @@ export default function GlobalError({
           <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
             La aplicación tuvo un problema
           </h1>
-          <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 16 }}>
+          <p style={{ fontSize: 14, color: '#65716F', marginBottom: 16 }}>
             Ocurrió un error inesperado al iniciar la pantalla. Intenta recargar.
           </p>
           <button
@@ -49,9 +43,11 @@ export default function GlobalError({
               padding: '8px 16px',
               fontSize: 14,
               borderRadius: 8,
-              border: '1px solid #d1d5db',
-              background: '#fff',
+              border: '1px solid #D9E0DD',
+              background: '#1FA6A0', /* Botón Turquesa */
+              color: '#FFFFFF',
               cursor: 'pointer',
+              fontWeight: 500,
             }}
           >
             Reintentar

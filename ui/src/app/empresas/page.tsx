@@ -381,11 +381,6 @@ function EmpresaRowActions({
     <div className="inline-flex items-center gap-1">
       {!archived ? (
         <>
-          <span title="Expediente fiscal (próximamente)">
-            <Button variant="ghost" size="icon" disabled aria-label="Expediente fiscal (próximamente)">
-              <Icon icon="ph:folder-light" className="size-4" />
-            </Button>
-          </span>
           <Button
             asChild
             variant="ghost"

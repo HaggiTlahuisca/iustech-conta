@@ -102,3 +102,5 @@ diag_csf/
 # Datos del emisor para cotizaciones (deploy/ops): incluye cuenta bancaria y
 # CLABE. NUNCA al repo — vive solo en el VPS y en la máquina de Israel.
 deploy/ops/data/emisor.json
+
+reemplazar_marca.py

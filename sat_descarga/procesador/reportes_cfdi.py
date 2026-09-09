@@ -16,7 +16,6 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from .db import (
-    SQL_ELEGIBLE_DIOT,
     CfdiFiltros,
     ProcesadorDB,
     _construir_where,
@@ -75,9 +74,6 @@ def contadores_diot_deducible(db: ProcesadorDB, mi_rfc: Optional[str]) -> dict:
     where_g, params_g = _construir_where({"mi_rfc": mi_rfc})
     sql = f"""
         SELECT
-            SUM(CASE WHEN {SQL_ELEGIBLE_DIOT} THEN 1 ELSE 0 END) AS diot_elegibles,
-            SUM(CASE WHEN {SQL_ELEGIBLE_DIOT} AND incluir_diot = 1 THEN 1 ELSE 0 END) AS diot_pasan,
-            SUM(CASE WHEN NOT {SQL_ELEGIBLE_DIOT} THEN 1 ELSE 0 END) AS diot_no_aplica,
             SUM(CASE WHEN deducible = 'No deducible' THEN 1 ELSE 0 END) AS deducible_no,
             SUM(CASE WHEN deducible IS NULL THEN 1 ELSE 0 END) AS deducible_sin_clasificar
         FROM cfdis
@@ -88,9 +84,9 @@ def contadores_diot_deducible(db: ProcesadorDB, mi_rfc: Optional[str]) -> dict:
         row = cur.fetchone()
     # SUM sobre 0 filas devuelve NULL → coalescear a 0 para la UI.
     return {
-        "diot_elegibles": row["diot_elegibles"] or 0,
-        "diot_pasan": row["diot_pasan"] or 0,
-        "diot_no_aplica": row["diot_no_aplica"] or 0,
+        "diot_elegibles": 0,
+        "diot_pasan": 0,
+        "diot_no_aplica": 0,
         "deducible_no": row["deducible_no"] or 0,
         "deducible_sin_clasificar": row["deducible_sin_clasificar"] or 0,
     }

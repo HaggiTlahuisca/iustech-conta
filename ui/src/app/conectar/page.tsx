@@ -83,7 +83,7 @@ export default function ConectarPage() {
           Conectar con mi espacio
         </h1>
         <p className="mb-8 text-center text-sm leading-relaxed text-muted-foreground">
-          Captura los datos de tu espacio TodoConta en la nube. Normalmente no
+          Captura los datos de tu espacio IusTechConta en la nube. Normalmente no
           necesitas esta página: el inicio de sesión conecta solo.
         </p>
 
@@ -98,7 +98,7 @@ export default function ConectarPage() {
             <Input
               id="conectar-url"
               type="url"
-              placeholder="https://agente.todoconta.com/u/…"
+              placeholder="https://agente.iustechconta.com/u/…"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               className="font-mono text-xs"
