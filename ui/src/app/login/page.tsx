@@ -56,7 +56,7 @@ function mensajeAuth(e: unknown): string {
   return mensajeDeError(e);
 }
 
-/** Payload del deep link `todoconta://<action>?code=…` que reenvía el preload. */
+/** Payload del deep link `iustechconta://<action>?code=…` que reenvía el preload. */
 interface ProtocolPayload {
   action?: string;
   code?: string | null;
@@ -117,7 +117,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   // OAuth Google (solo desktop): el flujo va por el navegador del SO y vuelve
-  // por el deep link `todoconta://auth-callback`. `googleEsperando` cubre el
+  // por el deep link `iustechconta://auth-callback`. `googleEsperando` cubre el
   // hueco entre abrir el navegador y recibir el code.
   const [esDesktop, setEsDesktop] = useState(false);
   const [googleEsperando, setGoogleEsperando] = useState(false);
@@ -336,7 +336,7 @@ export default function LoginPage() {
                 {esLogin ? 'Bienvenido de vuelta.' : 'Crea tu cuenta.'}
               </span>
               <span className="block text-[26px] font-bold leading-[1.22] tracking-[-0.02em] text-muted-foreground/70">
-                {esLogin ? 'Inicia sesión en TodoConta' : 'Empieza gratis con TodoConta'}
+                {esLogin ? 'Inicia sesión en IusTechConta' : 'Empieza gratis con IusTechConta'}
               </span>
             </h1>
 
@@ -443,7 +443,7 @@ export default function LoginPage() {
             <Divider>{esLogin ? 'o continúa con' : 'o regístrate con'}</Divider>
 
             {/* OAuth Google. En desktop el flujo va por el navegador del SO y
-                vuelve por el deep link `todoconta://auth-callback`; en
+                vuelve por el deep link `iustechconta://auth-callback`; en
                 navegador (sin Electron) no aplica el deep link → queda
                 "Próximamente". Una cuenta @gmail creada por OTP se vincula sola
                 en Supabase (mismo email verificado). */}
@@ -498,7 +498,7 @@ export default function LoginPage() {
                   provisioner); el registro vive en la app de escritorio. */}
               {webNecesitaProvision ? (
                 <p className="text-sm text-muted-foreground">
-                  Usa la cuenta con la que activaste TodoConta.
+                  Usa la cuenta con la que activaste IusTechConta.
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -514,14 +514,14 @@ export default function LoginPage() {
               )}
               <p className="mt-7 border-t border-border/60 pt-5 text-xs leading-relaxed text-muted-foreground/80">
                 {esLogin ? 'Al continuar' : 'Al crear tu cuenta'}, aceptas los{' '}
-                <LinkExterno href="https://todoconta.com/terminos">
+                <LinkExterno href="https://iustechconta.com/terminos">
                   Términos y condiciones
                 </LinkExterno>{' '}
                 y la{' '}
-                <LinkExterno href="https://todoconta.com/privacidad">
+                <LinkExterno href="https://iustechconta.com/privacidad">
                   Política de privacidad
                 </LinkExterno>{' '}
-                de TodoConta.
+                de IusTechConta.
               </p>
             </div>
           </div>

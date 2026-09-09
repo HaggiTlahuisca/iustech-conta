@@ -10,6 +10,7 @@ ARCHIVOS_A_MODIFICAR = [
     Path("sat_descarga/calculadoras/exportar.py"),
     Path("sat_descarga/api/routers/certifica.py"),
     Path("sat_descarga/api/state.py"),
+    Path("ui/src/app/login/page.tsx"),
 ]
 
 PAREJAS_REEMPLAZO = [
@@ -20,6 +21,7 @@ PAREJAS_REEMPLAZO = [
     ("api.todoconta.com", "api.iustechconta.com"),
     ("app.todoconta.com", "app.iustechconta.com"),
     ("todoconta.com", "iustechconta.com"),
+    ("todoconta://", "iustechconta://"),
     ("TodoConta", "IusTechConta"),
     ("todoconta", "iustechconta"),
 ]
