@@ -7,7 +7,6 @@ const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const PROVISIONER_URL = (process.env.NEXT_PUBLIC_PROVISIONER_URL ?? '').replace(/\/+$/, '');
 
-/** Sesión de Supabase que el provisioner autenticó y el agente debe adoptar. */
 export interface SesionProvisionada {
   access_token: string;
   refresh_token?: string | null;
@@ -16,9 +15,7 @@ export interface SesionProvisionada {
 }
 
 export interface ProvisionResult {
-  /** Base URL del agente personal del usuario (p. ej. …/u/abc123). */
   base_url: string;
-  /** Token de auth del agente. */
   token: string;
   session: SesionProvisionada;
 }
@@ -33,7 +30,6 @@ export class ProvisionerError extends Error {
   }
 }
 
-/** True si este build tiene Supabase o un provisioner configurado. */
 export function provisionerDisponible(): boolean {
   return PROVISIONER_URL.length > 0 || (SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0);
 }
@@ -54,9 +50,7 @@ async function post<T>(path: string, body: Record<string, unknown>): Promise<T> 
     try {
       const data = await res.json();
       if (typeof data.detail === 'string') detail = data.detail;
-    } catch {
-      // sin cuerpo JSON: se queda el mensaje genérico
-    }
+    } catch {}
     throw new ProvisionerError(res.status, detail);
   }
   return res.json() as Promise<T>;
@@ -90,9 +84,7 @@ export async function provisionLoginPassword(
     try {
       const data = await res.json();
       detail = data.msg || data.message || data.error_description || detail;
-    } catch {
-      // sin cuerpo json
-    }
+    } catch {}
     throw new ProvisionerError(res.status, detail);
   }
 
@@ -108,6 +100,61 @@ export async function provisionLoginPassword(
     base_url: typeof window !== 'undefined' ? window.location.origin : '',
     token: data.access_token ?? '',
     session,
+  };
+}
+
+export async function provisionSignup(
+  email: string,
+  password: string,
+  nombre?: string,
+): Promise<{ requiere_confirmacion: boolean; result?: ProvisionResult }> {
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        data: nombre ? { full_name: nombre, name: nombre } : {},
+      }),
+    });
+  } catch {
+    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación.');
+  }
+
+  if (!res.ok) {
+    let detail = 'No se pudo registrar la cuenta.';
+    try {
+      const data = await res.json();
+      detail = data.msg || data.message || data.error_description || detail;
+    } catch {}
+    throw new ProvisionerError(res.status, detail);
+  }
+
+  const data = await res.json();
+  if (!data.access_token && !data.session) {
+    return { requiere_confirmacion: true };
+  }
+
+  const session: SesionProvisionada = {
+    access_token: data.access_token ?? data.session?.access_token ?? '',
+    refresh_token: data.refresh_token ?? data.session?.refresh_token ?? null,
+    user_id: data.user?.id ?? '',
+    email: data.user?.email ?? email,
+  };
+
+  return {
+    requiere_confirmacion: false,
+    result: {
+      base_url: typeof window !== 'undefined' ? window.location.origin : '',
+      token: session.access_token,
+      session,
+    },
   };
 }
 
@@ -132,7 +179,7 @@ export async function provisionOtpSend(email: string): Promise<void> {
       }),
     });
   } catch {
-    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación. Revisa tu conexión.');
+    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación.');
   }
 
   if (!res.ok) {
@@ -140,9 +187,7 @@ export async function provisionOtpSend(email: string): Promise<void> {
     try {
       const data = await res.json();
       detail = data.msg || data.message || data.error_description || detail;
-    } catch {
-      // sin cuerpo json
-    }
+    } catch {}
     throw new ProvisionerError(res.status, detail);
   }
 }
@@ -171,7 +216,7 @@ export async function provisionOtpVerify(
       }),
     });
   } catch {
-    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación. Revisa tu conexión.');
+    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación.');
   }
 
   if (!res.ok) {
@@ -179,9 +224,7 @@ export async function provisionOtpVerify(
     try {
       const data = await res.json();
       detail = data.msg || data.message || data.error_description || detail;
-    } catch {
-      // sin cuerpo json
-    }
+    } catch {}
     throw new ProvisionerError(res.status, detail);
   }
 
@@ -200,7 +243,6 @@ export async function provisionOtpVerify(
   };
 }
 
-/** Canjea tokens ya emitidos por Supabase (OAuth / magic link) por el agente. */
 export function provisionConToken(
   accessToken: string,
   refreshToken?: string | null,

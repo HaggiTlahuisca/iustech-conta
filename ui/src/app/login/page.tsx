@@ -21,6 +21,7 @@ import {
   ProvisionerError,
   provisionerDisponible,
   provisionLoginPassword,
+  provisionSignup,
   provisionOtpSend,
   provisionOtpVerify,
   type ProvisionResult,
@@ -28,20 +29,11 @@ import {
 import { mensajeDeError } from '@/lib/errores';
 import { cn } from '@/lib/utils';
 
-// ---------------------------------------------------------------------------
-// Login en-app estilo Notion (sin navegador): contraseña u OTP de 6 dígitos.
-// La sesión Supabase se guarda en el agente (keyring); el renderer solo ve el
-// estado derivado vía useAuth(). Reemplaza al device-code flow (que sigue
-// disponible en el agente como fallback, pero sin UI).
-// ---------------------------------------------------------------------------
-
 type Vista = 'login' | 'signup';
 type Metodo = 'password' | 'codigo';
 type Paso = 'form' | 'otp' | 'done';
 
-/** Contexto del paso OTP: cómo verificar y cómo reenviar. */
 interface OtpContexto {
-  /** Tipo de verificación GoTrue: 'email' (login/registro por código) | 'signup' (confirmar registro con contraseña). */
   tipo: 'email' | 'signup';
   crearCuenta: boolean;
   nombre: string;
@@ -50,20 +42,17 @@ interface OtpContexto {
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 function mensajeAuth(e: unknown): string {
-  // ApiError.message viene como "[401] detalle"; mostramos solo el detalle.
   if (e instanceof ApiError) return e.detail;
   if (e instanceof ProvisionerError) return e.detail;
   return mensajeDeError(e);
 }
 
-/** Payload del deep link `iustechconta://<action>?code=…` que reenvía el preload. */
 interface ProtocolPayload {
   action?: string;
   code?: string | null;
   error?: string | null;
 }
 
-/** Bridge de Electron (preload). En navegador todo es undefined. */
 interface DesktopBridge {
   satAgent?: { isDesktop?: boolean };
   satDesktop?: {
@@ -80,17 +69,10 @@ export default function LoginPage() {
   const { apiClient, conectar, webSinConexion } = useServer();
   const { refresh } = useAuth();
 
-  // Versión web SIN agente conocido: el login pasa por el provisioner (que
-  // valida contra Supabase, enciende el contenedor del usuario y devuelve
-  // {base_url, token, session}). Ya conectados, el flujo normal via agente
-  // funciona igual que en desktop.
-  const webNecesitaProvision = false;
+  const webNecesitaProvision = esWeb() && webSinConexion;
 
-  // Guarda la conexión y entrega la sesión al agente recién aprovisionado.
   const adoptarYConectar = useCallback(
     async (r: ProvisionResult) => {
-      // El token debe estar en localStorage ANTES del request (el cliente lo
-      // lee de ahí para el header X-Agent-Token).
       conectar({ baseUrl: r.base_url, token: r.token });
       const cliente = new SatApiClient(r.base_url);
       await cliente.authAdoptSession(r.session);
@@ -99,8 +81,6 @@ export default function LoginPage() {
   );
 
   const [vista, setVista] = useState<Vista>('login');
-  // Código de acceso por default: los usuarios existentes de la web no tienen
-  // contraseña (la app en línea usa magic link); la contraseña es opcional.
   const [metodo, setMetodo] = useState<Metodo>('codigo');
   const [paso, setPaso] = useState<Paso>('form');
   const [otpCtx, setOtpCtx] = useState<OtpContexto>({
@@ -116,9 +96,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // OAuth Google (solo desktop): el flujo va por el navegador del SO y vuelve
-  // por el deep link `iustechconta://auth-callback`. `googleEsperando` cubre el
-  // hueco entre abrir el navegador y recibir el code.
   const [esDesktop, setEsDesktop] = useState(false);
   const [googleEsperando, setGoogleEsperando] = useState(false);
 
@@ -138,8 +115,6 @@ export default function LoginPage() {
     setError(null);
   }, []);
 
-  // Al completar el login, una pequeña pausa para que se vea el estado de
-  // éxito antes de que refresh() re-renderee el shell con el dashboard.
   useEffect(() => {
     if (paso !== 'done') return;
     const t = setTimeout(() => {
@@ -148,7 +123,6 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, [paso, refresh]);
 
-  // Canjea el auth_code de Google por la sesión (la guarda el agente) y entra.
   const manejarCodigoGoogle = useCallback(
     async (code: string) => {
       setError(null);
@@ -165,8 +139,6 @@ export default function LoginPage() {
     [apiClient],
   );
 
-  // Detecta desktop y se suscribe al deep link de Google. Ramifica por
-  // `action` para no tocar el device-code legado (`activated`).
   useEffect(() => {
     const b = desktopBridge();
     setEsDesktop(!!b.satAgent?.isDesktop);
@@ -177,15 +149,12 @@ export default function LoginPage() {
       if (p.code) {
         void manejarCodigoGoogle(p.code);
       } else {
-        // El usuario canceló o Google devolvió error.
         setGoogleEsperando(false);
         setError('No se pudo continuar con Google. Intenta de nuevo.');
       }
     });
   }, [manejarCodigoGoogle]);
 
-  // Arranca el OAuth: pide la URL al agente y la abre en el navegador del SO
-  // (window.open pasa por setWindowOpenHandler → shell.openExternal).
   const iniciarGoogle = useCallback(async () => {
     setError(null);
     setGoogleEsperando(true);
@@ -198,9 +167,6 @@ export default function LoginPage() {
     }
   }, [apiClient]);
 
-  // Login/OTP unificados: en la web sin conexión pasan por el provisioner
-  // (que además conecta con el agente); en desktop o ya conectados, directo
-  // al agente como siempre.
   const loginConPassword = useCallback(
     async (correo: string, pwd: string) => {
       if (webNecesitaProvision) {
@@ -261,15 +227,26 @@ export default function LoginPage() {
             setError('La contraseña debe tener mínimo 8 caracteres.');
             return;
           }
-          const r = await apiClient.authSignup(correo, password, nombre.trim());
-          if (r.requiere_confirmacion) {
-            setOtpCtx({ tipo: 'signup', crearCuenta: false, nombre: nombre.trim() });
-            setPaso('otp');
+          if (webNecesitaProvision) {
+            const r = await provisionSignup(correo, password, nombre.trim());
+            if (r.requiere_confirmacion) {
+              setOtpCtx({ tipo: 'signup', crearCuenta: false, nombre: nombre.trim() });
+              setPaso('otp');
+            } else if (r.result) {
+              await adoptarYConectar(r.result);
+              setPaso('done');
+            }
           } else {
-            setPaso('done');
+            const r = await apiClient.authSignup(correo, password, nombre.trim());
+            if (r.requiere_confirmacion) {
+              setOtpCtx({ tipo: 'signup', crearCuenta: false, nombre: nombre.trim() });
+              setPaso('otp');
+            } else {
+              setPaso('done');
+            }
           }
         } else {
-          await apiClient.authOtpSend(correo, {
+          await enviarOtp(correo, {
             crearCuenta: true,
             nombre: nombre.trim(),
           });
@@ -282,30 +259,13 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [apiClient, email, password, nombre, esLogin, esPwd, loginConPassword, enviarOtp],
+    [apiClient, email, password, nombre, esLogin, esPwd, loginConPassword, enviarOtp, webNecesitaProvision, adoptarYConectar],
   );
 
   return (
     <div className="flex min-h-full justify-center bg-background px-6 pb-10 pt-14">
       <div className="w-full max-w-96">
-        {webNecesitaProvision && !provisionerDisponible() ? (
-          // Build web sin provisioner configurado (piloto F1): la conexión con
-          // el agente se captura a mano en /conectar.
-          <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
-            <Marca />
-            <h1 className="mb-4 text-center text-[26px] font-bold leading-[1.22] tracking-[-0.02em] text-foreground">
-              Versión web en piloto
-            </h1>
-            <p className="text-center text-sm leading-relaxed text-muted-foreground">
-              Esta instancia todavía no tiene el servicio de acceso automático.
-              Si tienes los datos de tu espacio (URL y token), conéctate en{' '}
-              <Link href="/conectar" className="font-semibold text-primary hover:underline">
-                Conectar con mi espacio
-              </Link>
-              .
-            </p>
-          </div>
-        ) : paso === 'done' ? (
+        {paso === 'done' ? (
           <DoneStep esLogin={esLogin} />
         ) : paso === 'otp' ? (
           <OtpStep
@@ -313,14 +273,10 @@ export default function LoginPage() {
             esLogin={esLogin}
             verificar={(codigo) => verificarOtp(email.trim(), codigo, otpCtx.tipo)}
             reenviar={async () => {
-              if (otpCtx.tipo === 'signup') {
-                await apiClient.authOtpSend(email.trim(), { tipo: 'signup' });
-              } else {
-                await enviarOtp(email.trim(), {
-                  crearCuenta: otpCtx.crearCuenta,
-                  nombre: otpCtx.nombre,
-                });
-              }
+              await enviarOtp(email.trim(), {
+                crearCuenta: otpCtx.crearCuenta,
+                nombre: otpCtx.nombre,
+              });
             }}
             onVolver={() => {
               setPaso('form');
@@ -442,11 +398,6 @@ export default function LoginPage() {
 
             <Divider>{esLogin ? 'o continúa con' : 'o regístrate con'}</Divider>
 
-            {/* OAuth Google. En desktop el flujo va por el navegador del SO y
-                vuelve por el deep link `iustechconta://auth-callback`; en
-                navegador (sin Electron) no aplica el deep link → queda
-                "Próximamente". Una cuenta @gmail creada por OTP se vincula sola
-                en Supabase (mismo email verificado). */}
             {esDesktop ? (
               <>
                 <button
@@ -494,24 +445,16 @@ export default function LoginPage() {
             )}
 
             <div className="mt-7 text-center">
-              {/* En la web el acceso requiere una cuenta con plan (la valida el
-                  provisioner); el registro vive en la app de escritorio. */}
-              {webNecesitaProvision ? (
-                <p className="text-sm text-muted-foreground">
-                  Usa la cuenta con la que activaste IusTechConta.
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {esLogin ? '¿Primera vez?' : '¿Ya tienes cuenta?'}{' '}
-                  <button
-                    type="button"
-                    className="font-semibold text-primary hover:underline"
-                    onClick={() => cambiarVista(esLogin ? 'signup' : 'login')}
-                  >
-                    {esLogin ? 'Crea tu cuenta' : 'Inicia sesión'}
-                  </button>
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                {esLogin ? '¿Primera vez?' : '¿Ya tienes cuenta?'}{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-primary hover:underline"
+                  onClick={() => cambiarVista(esLogin ? 'signup' : 'login')}
+                >
+                  {esLogin ? 'Crea tu cuenta' : 'Inicia sesión'}
+                </button>
+              </p>
               <p className="mt-7 border-t border-border/60 pt-5 text-xs leading-relaxed text-muted-foreground/80">
                 {esLogin ? 'Al continuar' : 'Al crear tu cuenta'}, aceptas los{' '}
                 <LinkExterno href="https://iustechconta.com/terminos">
@@ -531,10 +474,6 @@ export default function LoginPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Paso OTP: 6 cajas de dígito, auto-advance, reenviar con timer, volver.
-// ---------------------------------------------------------------------------
-
 const OTP_LEN = 6;
 const RESEND_SECS = 30;
 
@@ -548,9 +487,7 @@ function OtpStep({
 }: {
   email: string;
   esLogin: boolean;
-  /** Verifica el código (agente o provisioner, lo decide el padre). */
   verificar: (codigo: string) => Promise<void>;
-  /** Reenvía el código con el mismo contexto del envío original. */
   reenviar: () => Promise<void>;
   onVolver: () => void;
   onExito: () => void;
@@ -584,7 +521,6 @@ function OtpStep({
     if (e.key === 'Backspace' && !vals[i] && i > 0) refs.current[i - 1]?.focus();
   };
 
-  // Pegar el código completo desde el correo llena las 6 cajas de una vez.
   const onPaste = (e: React.ClipboardEvent) => {
     const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
     if (!digits) return;
@@ -691,10 +627,6 @@ function OtpStep({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Estado de éxito
-// ---------------------------------------------------------------------------
-
 function DoneStep({ esLogin }: { esLogin: boolean }) {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 py-16 text-center duration-200">
@@ -710,10 +642,6 @@ function DoneStep({ esLogin }: { esLogin: boolean }) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Piezas compartidas
-// ---------------------------------------------------------------------------
 
 function Marca() {
   return (
@@ -833,7 +761,6 @@ function LinkExterno({ href, children }: { href: string; children: ReactNode }) 
   );
 }
 
-/** Logo oficial de Google (marca de OAuth, multicolor — no Phosphor). */
 function GoogleG() {
   return (
     <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="size-4.75">
