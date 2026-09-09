@@ -13,7 +13,9 @@ import {
 
 import { useServer } from '@/providers/server-provider';
 import { identificarUsuario } from '@/lib/telemetria';
-import type { LicenseStatus } from '@/lib/api-client';
+import type { LicenseStatus, DesktopPlan } from '@/lib/api-client';
+import { esWeb } from '@/lib/modo';
+import { getConexion, clearConexion } from '@/lib/conexion-web';
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -26,64 +28,181 @@ interface AuthContextValue {
   loading: boolean;
   /** Re-fetch del backend (force_refresh). Lo llaman botones de "refrescar". */
   refresh: () => Promise<void>;
-  /** Logout — limpia keyring y vuelve a la pantalla de login. */
+  /** Logout — limpia keyring/almacenamiento y vuelve a la pantalla de login. */
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function decodificarJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
+async function validarSesionSupabase(
+  token: string,
+): Promise<{ authenticated: boolean; user_id?: string; email?: string | null; plan?: string } | null> {
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/rest\/v1\/?$/, '');
+  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+
+  const payload = decodificarJwtPayload(token);
+  const exp = typeof payload?.exp === 'number' ? payload.exp * 1000 : 0;
+  if (exp > 0 && Date.now() > exp) {
+    return null;
+  }
+
+  if (!supabaseUrl || !anonKey || !token) {
+    if (payload?.sub) {
+      return {
+        authenticated: true,
+        user_id: String(payload.sub),
+        email: typeof payload.email === 'string' ? payload.email : null,
+        plan: 'gratuito',
+      };
+    }
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) return null;
+      if (payload?.sub) {
+        return {
+          authenticated: true,
+          user_id: String(payload.sub),
+          email: typeof payload.email === 'string' ? payload.email : null,
+          plan: 'gratuito',
+        };
+      }
+      return null;
+    }
+
+    const user = await res.json();
+    let plan = 'gratuito';
+
+    try {
+      const licRes = await fetch(
+        `${supabaseUrl}/rest/v1/licencias?usuario_id=eq.${user.id}&select=*&limit=1`,
+        {
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (licRes.ok) {
+        const licRows = await licRes.json();
+        if (Array.isArray(licRows) && licRows.length > 0 && licRows[0]?.plan) {
+          plan = licRows[0].plan;
+        }
+      }
+    } catch {
+      // Usar plan gratuito por defecto si la consulta de licencias tarda
+    }
+
+    return {
+      authenticated: true,
+      user_id: user.id,
+      email: user.email,
+      plan,
+    };
+  } catch {
+    if (payload?.sub && (exp === 0 || Date.now() < exp)) {
+      return {
+        authenticated: true,
+        user_id: String(payload.sub),
+        email: typeof payload.email === 'string' ? payload.email : null,
+        plan: 'gratuito',
+      };
+    }
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
-/**
- * AuthProvider — fuente de verdad del estado de autenticación + licencia.
- *
- * - Carga el estado al montar con cache (render instantáneo, sin red) y luego
- *   reconcilia en background con un force-refresh (corrige banners/badges si el
- *   estado cambió en el servidor: ventana de fundadores cerrada, promo activa,
- *   suscripción, etc.) sin bloquear ni mostrar spinner.
- * - Re-fetch automático cada 6h con force (ignora el cache de 24h del agente)
- *   para que sesiones largas no queden desactualizadas.
- * - Expone `refresh()` para invalidar manualmente y `logout()`.
- */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { apiClient, isConnected, webSinConexion } = useServer();
   const [license, setLicense] = useState<LicenseStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Versión web sin conexión con su agente: no hay a quién preguntarle la
-  // licencia — se trata como "no autenticado" para que el shell muestre el
-  // login (que en la web pasa por el provisioner) en vez de un loader eterno.
   useEffect(() => {
+    if (esWeb()) return;
     if (!webSinConexion) return;
     setLicense({ authenticated: false });
     setLoading(false);
   }, [webSinConexion]);
-  // ID monotónico de la última petición iniciada. Como puede haber varios
-  // fetches en vuelo (startup cache+force, intervalo 6h, refresh manual, o una
-  // reconexión que recrea el apiClient con otro puerto), solo aplicamos la
-  // respuesta del más reciente — así un resultado viejo nunca pisa al nuevo.
+
   const latestRequest = useRef(0);
 
   const fetchLicense = useCallback(
     async (force = false) => {
       const requestId = ++latestRequest.current;
       const sigueVigente = () => requestId === latestRequest.current;
+
+      if (esWeb()) {
+        const cx = getConexion();
+        if (!cx?.token) {
+          if (sigueVigente()) {
+            setLicense({ authenticated: false });
+            setLoading(false);
+          }
+          return;
+        }
+
+        const user = await validarSesionSupabase(cx.token);
+        if (!sigueVigente()) return;
+
+        if (user) {
+          const lic: LicenseStatus = {
+            authenticated: true,
+            user_id: user.user_id,
+            email: user.email,
+            plan: (user.plan ?? 'gratuito') as unknown as DesktopPlan,
+          };
+          setLicense(lic);
+          identificarUsuario(
+            user.user_id ? { id: user.user_id, email: user.email } : null,
+          );
+        } else {
+          setLicense({ authenticated: false });
+          identificarUsuario(null);
+        }
+        setLoading(false);
+        return;
+      }
+
       try {
         const data = await apiClient.authLicense(force);
-        if (!sigueVigente()) return; // llegó tarde: ya ganó una petición más nueva
+        if (!sigueVigente()) return;
         setLicense(data);
-        // Identifica al usuario en Sentry (o lo desliga si no hay sesión) para
-        // que los reportes traigan quién es. Idempotente entre re-fetches.
         identificarUsuario(
           data.authenticated ? { id: data.user_id, email: data.email } : null,
         );
-        // Disparar autocarga de FIEL en background si el usuario está
-        // autenticado. Antes lo hacía el lifespan del agente, pero bloqueaba
-        // el startup en Windows (keyring sin prompt UI). Ahora es lazy y no
-        // bloquea — si falla, la app sigue funcional y el usuario carga la
-        // FIEL a mano desde Empresas.
         if (data.authenticated) {
           apiClient.autocargarFiel().catch((e) => {
             console.warn('[auth] autocargarFiel falló (no bloqueante):', e);
@@ -91,7 +210,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         console.warn('[auth] authLicense falló:', e);
-        // Mantenemos el estado previo si lo había; si no, marcamos no-auth.
         if (sigueVigente()) setLicense((prev) => prev ?? { authenticated: false });
       } finally {
         setLoading(false);
@@ -100,20 +218,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [apiClient],
   );
 
-  // Carga inicial: cache primero (render instantáneo) y luego un force-refresh
-  // en background para reconciliar con el servidor. El force no vuelve a poner
-  // `loading=true` (solo se apaga en el finally), así que el shell no parpadea;
-  // si el estado cambió (p. ej. ventana de fundadores cerrada), los banners se
-  // corrigen solos en cuanto llega la respuesta. Offline-safe: el agente cae a
-  // su cache si no hay red.
   useEffect(() => {
+    if (esWeb()) {
+      void fetchLicense(false);
+      return;
+    }
     if (!isConnected) return;
     void fetchLicense(false).then(() => fetchLicense(true));
   }, [isConnected, fetchLicense]);
 
-  // Re-fetch cada 6h con force: ignora el cache de 24h del agente para que una
-  // sesión abierta por días refleje cambios del servidor a tiempo.
   useEffect(() => {
+    if (esWeb()) {
+      const interval = setInterval(() => {
+        fetchLicense(true);
+      }, 6 * 60 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
     if (!isConnected) return;
     const interval = setInterval(() => {
       fetchLicense(true);
@@ -125,13 +245,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      if (esWeb()) {
+        clearConexion();
+      }
       await apiClient.authLogout();
     } catch (e) {
       console.warn('[auth] logout falló:', e);
     }
     setLicense({ authenticated: false });
     setLoading(false);
-    identificarUsuario(null); // desliga al usuario de los próximos reportes
+    identificarUsuario(null);
   }, [apiClient]);
 
   const value = useMemo<AuthContextValue>(
@@ -154,10 +277,6 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-/**
- * `useRequireAuth` — devuelve la license cuando ya hay sesión; antes de eso,
- * permite a las páginas mostrar un loader.
- */
 export function useRequireAuth(): {
   ready: boolean;
   authenticated: boolean;
