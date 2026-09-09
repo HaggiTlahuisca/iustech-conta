@@ -74,8 +74,15 @@ export default function LoginPage() {
   const adoptarYConectar = useCallback(
     async (r: ProvisionResult) => {
       conectar({ baseUrl: r.base_url, token: r.token });
-      const cliente = new SatApiClient(r.base_url);
-      await cliente.authAdoptSession(r.session);
+      // Si el agente corre en un servidor o puerto distinto a la web, sincronizamos la sesión
+      if (typeof window !== 'undefined' && r.base_url && !r.base_url.includes(window.location.host)) {
+        try {
+          const cliente = new SatApiClient(r.base_url);
+          await cliente.authAdoptSession(r.session);
+        } catch (e) {
+          console.warn('No se requirió sincronización con agente local:', e);
+        }
+      }
     },
     [conectar],
   );
