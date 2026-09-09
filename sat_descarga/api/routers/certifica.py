@@ -589,7 +589,7 @@ Contraseña de la clave privada (.key) de este CSD — {rfc}
 
 • La necesitas para timbrar CFDI con este Certificado de Sello Digital.
 • El SAT no puede recuperarla: guarda este archivo (o la contraseña) en un
-  lugar seguro. TodoConta también la conserva en el llavero de tu equipo.
+  lugar seguro. IusTechConta también la conserva en el llavero de tu equipo.
 • Si la pierdes y no tienes respaldo, genera un nuevo CSD (es gratuito).
 """
 

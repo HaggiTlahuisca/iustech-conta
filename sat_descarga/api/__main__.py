@@ -18,7 +18,7 @@ la red.
 Logging: cuando corre como `.exe` (PyInstaller con `console=False`), stdout
 y stderr van a /dev/null en Windows. Para no perder el rastro de errores de
 arranque, configuramos un logger que escribe a un archivo rotado en
-`%LOCALAPPDATA%\\TodoConta\\logs\\agent.log` (Windows) o el equivalente en
+`%LOCALAPPDATA%\\IusTechConta\\logs\\agent.log` (Windows) o el equivalente en
 otros SO. En dev (`uv run uvicorn ...`) este archivo igual se crea — el
 usuario puede ignorarlo, los logs siguen viéndose en la terminal.
 """
@@ -36,7 +36,7 @@ from pathlib import Path
 def _parse_port() -> int:
     parser = argparse.ArgumentParser(
         prog="sat-agent",
-        description="Agente FastAPI local de TodoConta Desktop.",
+        description="Agente FastAPI local de IusTechConta Desktop.",
     )
     parser.add_argument(
         "--port",
@@ -67,16 +67,16 @@ def _ruta_log() -> Path:
     Devuelve la ruta del archivo de log del agente. Crea el directorio si no
     existe.
 
-    - Windows: %LOCALAPPDATA%\\TodoConta\\logs\\agent.log
-    - macOS:   ~/Library/Logs/TodoConta/agent.log
-    - Linux:   ~/.local/state/TodoConta/agent.log
+    - Windows: %LOCALAPPDATA%\\IusTechConta\\logs\\agent.log
+    - macOS:   ~/Library/Logs/IusTechConta/agent.log
+    - Linux:   ~/.local/state/IusTechConta/agent.log
     """
     if sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "TodoConta" / "logs"
+        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "IusTechConta" / "logs"
     elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Logs" / "TodoConta"
+        base = Path.home() / "Library" / "Logs" / "IusTechConta"
     else:
-        base = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))) / "TodoConta"
+        base = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))) / "IusTechConta"
 
     base.mkdir(parents=True, exist_ok=True)
     return base / "agent.log"
@@ -131,7 +131,7 @@ def _configurar_logging() -> Path:
 def main() -> None:
     # CONFIGURAR LOGGING ANTES DE TODO. Con `console=False` en PyInstaller,
     # stdout/stderr van a /dev/null; cualquier crash previo a este punto se
-    # pierde sin traza. El log file en %LOCALAPPDATA%\TodoConta\logs\agent.log
+    # pierde sin traza. El log file en %LOCALAPPDATA%\IusTechConta\logs\agent.log
     # (Windows) es nuestra única vía de diagnóstico cuando un usuario reporta
     # "no arranca".
     log_path = _configurar_logging()

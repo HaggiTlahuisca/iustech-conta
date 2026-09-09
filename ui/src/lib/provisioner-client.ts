@@ -1,12 +1,10 @@
 // ---------------------------------------------------------------------------
-// Cliente del provisioner (versión web): el servicio en el VPS que hace el
-// PRIMER login (contra Supabase), valida la licencia y enciende/devuelve el
-// agente personal del usuario. Ver docs/infra/despliegue-web.md.
-//
-// Solo aplica al build web (NEXT_PUBLIC_PROVISIONER_URL); en desktop el login
-// va directo al agente local.
+// Cliente de autenticación web (Supabase Auth directo):
+// Envía y verifica códigos OTP de 6 dígitos y contraseñas directo contra Supabase.
 // ---------------------------------------------------------------------------
 
+const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const PROVISIONER_URL = (process.env.NEXT_PUBLIC_PROVISIONER_URL ?? '').replace(/\/+$/, '');
 
 /** Sesión de Supabase que el provisioner autenticó y el agente debe adoptar. */
@@ -35,9 +33,9 @@ export class ProvisionerError extends Error {
   }
 }
 
-/** True si este build tiene provisioner configurado (login web automático). */
+/** True si este build tiene Supabase o un provisioner configurado. */
 export function provisionerDisponible(): boolean {
-  return PROVISIONER_URL.length > 0;
+  return PROVISIONER_URL.length > 0 || (SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0);
 }
 
 async function post<T>(path: string, body: Record<string, unknown>): Promise<T> {
@@ -64,22 +62,142 @@ async function post<T>(path: string, body: Record<string, unknown>): Promise<T> 
   return res.json() as Promise<T>;
 }
 
-export function provisionLoginPassword(
+export async function provisionLoginPassword(
   email: string,
   password: string,
 ): Promise<ProvisionResult> {
-  return post<ProvisionResult>('/provision/login-password', { email, password });
+  if (PROVISIONER_URL.length > 0) {
+    return post<ProvisionResult>('/provision/login-password', { email, password });
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación.');
+  }
+
+  if (!res.ok) {
+    let detail = 'Correo o contraseña incorrectos.';
+    try {
+      const data = await res.json();
+      detail = data.msg || data.message || data.error_description || detail;
+    } catch {
+      // sin cuerpo json
+    }
+    throw new ProvisionerError(res.status, detail);
+  }
+
+  const data = await res.json();
+  const session: SesionProvisionada = {
+    access_token: data.access_token ?? '',
+    refresh_token: data.refresh_token ?? null,
+    user_id: data.user?.id ?? '',
+    email: data.user?.email ?? email,
+  };
+
+  return {
+    base_url: typeof window !== 'undefined' ? window.location.origin : '',
+    token: data.access_token ?? '',
+    session,
+  };
 }
 
 export async function provisionOtpSend(email: string): Promise<void> {
-  await post<{ ok: boolean }>('/provision/otp-send', { email });
+  if (PROVISIONER_URL.length > 0) {
+    await post<{ ok: boolean }>('/provision/otp-send', { email });
+    return;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        email,
+        create_user: true,
+      }),
+    });
+  } catch {
+    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación. Revisa tu conexión.');
+  }
+
+  if (!res.ok) {
+    let detail = 'No se pudo enviar el código de acceso.';
+    try {
+      const data = await res.json();
+      detail = data.msg || data.message || data.error_description || detail;
+    } catch {
+      // sin cuerpo json
+    }
+    throw new ProvisionerError(res.status, detail);
+  }
 }
 
-export function provisionOtpVerify(
+export async function provisionOtpVerify(
   email: string,
   token: string,
 ): Promise<ProvisionResult> {
-  return post<ProvisionResult>('/provision/otp-verify', { email, token });
+  if (PROVISIONER_URL.length > 0) {
+    return post<ProvisionResult>('/provision/otp-verify', { email, token });
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        type: 'email',
+        email,
+        token,
+      }),
+    });
+  } catch {
+    throw new ProvisionerError(0, 'No se pudo contactar el servicio de autenticación. Revisa tu conexión.');
+  }
+
+  if (!res.ok) {
+    let detail = 'Código incorrecto o expirado.';
+    try {
+      const data = await res.json();
+      detail = data.msg || data.message || data.error_description || detail;
+    } catch {
+      // sin cuerpo json
+    }
+    throw new ProvisionerError(res.status, detail);
+  }
+
+  const data = await res.json();
+  const session: SesionProvisionada = {
+    access_token: data.access_token ?? '',
+    refresh_token: data.refresh_token ?? null,
+    user_id: data.user?.id ?? '',
+    email: data.user?.email ?? email,
+  };
+
+  return {
+    base_url: typeof window !== 'undefined' ? window.location.origin : '',
+    token: data.access_token ?? '',
+    session,
+  };
 }
 
 /** Canjea tokens ya emitidos por Supabase (OAuth / magic link) por el agente. */
@@ -87,8 +205,23 @@ export function provisionConToken(
   accessToken: string,
   refreshToken?: string | null,
 ): Promise<ProvisionResult> {
-  return post<ProvisionResult>('/provision/con-token', {
+  if (PROVISIONER_URL.length > 0) {
+    return post<ProvisionResult>('/provision/con-token', {
+      access_token: accessToken,
+      refresh_token: refreshToken ?? null,
+    });
+  }
+
+  const session: SesionProvisionada = {
     access_token: accessToken,
     refresh_token: refreshToken ?? null,
+    user_id: '',
+    email: null,
+  };
+
+  return Promise.resolve({
+    base_url: typeof window !== 'undefined' ? window.location.origin : '',
+    token: accessToken,
+    session,
   });
 }

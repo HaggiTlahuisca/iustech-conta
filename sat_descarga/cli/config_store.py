@@ -1,7 +1,7 @@
 """
 Capa de datos para el catálogo de empresas y tracking de solicitudes.
 
-Almacena en ~/.sat-descarga/:
+Almacena en ~/.iustechconta/:
   empresas.json              — catálogo de FIELs registradas
   solicitudes/{RFC}.json     — historial de solicitudes por empresa
 
@@ -34,7 +34,7 @@ _envios_lock = threading.RLock()
 # agente atiende requests concurrentes y los mutadores hacen read-modify-write.
 _catalogo_lock = threading.RLock()
 
-CONFIG_DIR = Path.home() / ".sat-descarga"
+CONFIG_DIR = Path.home() / ".iustechconta"
 # Copia de trabajo de los certificados, ANCLADA a una ruta absoluta y siempre
 # escribible. Antes era `Path("efirma")` (relativa): bajo Electron empaquetado el
 # agente arranca con cwd en el directorio de la app (solo-lectura en Windows por
@@ -242,7 +242,7 @@ def _migrar_rutas_efirma(catalogo: dict) -> bool:
 
     1. `CONFIG_DIR/<relativa>` — el caso normal, solo se reescribe a absoluta.
     2. `cwd/<relativa>` — la resolución legacy. Si el archivo aparece ahí, se
-       **copia** a `~/.sat-descarga/efirma/{RFC}/` para que deje de depender de
+       **copia** a `~/.iustechconta/efirma/{RFC}/` para que deje de depender de
        dónde arranque el proceso.
     3. Si no está en ninguna, se reescribe igual a la forma absoluta bajo
        `CONFIG_DIR`: así el error que ve el usuario nombra una ruta real en vez
@@ -306,7 +306,7 @@ def save_empresas(data: dict):
 
 
 def _efirma_dir(rfc: str) -> Path:
-    """Retorna ~/.sat-descarga/efirma/{RFC}/, creándola si no existe."""
+    """Retorna ~/.iustechconta/efirma/{RFC}/, creándola si no existe."""
     d = EFIRMA_DIR / rfc
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -318,9 +318,9 @@ def _efirma_dir(rfc: str) -> Path:
 _LEEME_RESPALDO_FIEL = """\
 Respaldo de tu e.firma — {rfc}
 
-Esta carpeta contiene una COPIA de tu e.firma (fiel.cer y fiel.key) hecha por TodoConta.
+Esta carpeta contiene una COPIA de tu e.firma (fiel.cer y fiel.key) hecha por IusTechConta.
 
-• Todo queda en tu equipo. TodoConta NUNCA sube tu e.firma a ningún servidor ni
+• Todo queda en tu equipo. IusTechConta NUNCA sube tu e.firma a ningún servidor ni
   conserva una copia fuera de tu computadora.
 • Tu CONTRASEÑA no se guarda aquí ni en ningún archivo. Vive cifrada en el llavero
   de tu sistema operativo (Windows Credential Manager / macOS Keychain), solo por
@@ -335,7 +335,7 @@ def _respaldar_fiel_en_descargas(rfc: str, cer_dest: Path, key_dest: Path) -> No
     """Guarda (best-effort) una copia VISIBLE de los .cer/.key en
     <descargas>/fiel/{RFC}/, junto a CFDI/constancia/opinión, con un LÉEME.
 
-    La copia de trabajo que carga el agente vive en ~/.sat-descarga/efirma/ (a esa
+    La copia de trabajo que carga el agente vive en ~/.iustechconta/efirma/ (a esa
     apuntan cer_path/key_path en empresas.json); esta es un respaldo para el usuario.
     NO se copia la contraseña: vive solo en el keychain del SO (core.secretos). Si la
     carpeta de descargas no es escribible, NO se interrumpe el registro — solo se
@@ -372,7 +372,7 @@ def add_empresa(nombre: str, cer_path: str, key_path: str, password: str,
     """
     Registra una empresa por e.firma (FIEL) — o le AGREGA el método e.firma si el RFC
     ya existía (p. ej. con CIEC), sin quitar el otro método. Valida la FIEL, copia
-    .cer/.key a ~/.sat-descarga/efirma/{RFC}/ (copia de trabajo del agente), deja un
+    .cer/.key a ~/.iustechconta/efirma/{RFC}/ (copia de trabajo del agente), deja un
     respaldo visible en <descargas>/fiel/{RFC}/ y guarda la contraseña en el keychain.
     Retorna el RFC.
 
@@ -880,7 +880,7 @@ def aplicar_sync_remoto(remotas: list[dict]) -> int:
 def respaldar_efirma_anterior(rfc: str) -> Optional[Path]:
     """
     Antes de sustituir la e.firma por la renovada, copia (best-effort) los
-    fiel.cer/fiel.key actuales a ~/.sat-descarga/efirma/{RFC}/anterior_{stamp}/.
+    fiel.cer/fiel.key actuales a ~/.iustechconta/efirma/{RFC}/anterior_{stamp}/.
     El cert viejo deja de servir en cuanto el SAT emite el nuevo, pero el
     respaldo permite forense/recuperación manual. Nunca lanza; devuelve la
     carpeta del respaldo o None si no había nada que respaldar o falló.
@@ -1321,7 +1321,7 @@ def descargas_dir_default() -> str:
     env = os.environ.get("SAT_DM_DESCARGAS_DIR", "").strip()
     if env:
         return env
-    return str(Path.home() / "Documents" / "TodoConta")
+    return str(Path.home() / "Documents" / "IusTechConta")
 
 
 def get_descargas_dir() -> str:
@@ -1420,7 +1420,7 @@ def set_organizador_config(patch: dict) -> dict:
 # poller de la app. Reanudar es idempotente: siempre se consulta el portal
 # antes de subir (omitir_enviados), así que un pendiente "de más" no duplica.
 #
-# Esquema — ~/.sat-descarga/envios/{RFC}.json:
+# Esquema — ~/.iustechconta/envios/{RFC}.json:
 #   {"version": 1, "envios": [{
 #       "id": uuid4.hex[:12], "tramite": "ce",         # "diot" reservado
 #       "rfc": "...", "archivos": ["/abs/x.zip", ...], # lo que FALTA por enviar
