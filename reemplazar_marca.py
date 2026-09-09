@@ -11,6 +11,7 @@ ARCHIVOS_A_MODIFICAR = [
     Path("sat_descarga/api/routers/certifica.py"),
     Path("sat_descarga/api/state.py"),
     Path("ui/src/app/login/page.tsx"),
+    Path("ui/src/components/layout/brand-mark.tsx"),
 ]
 
 PAREJAS_REEMPLAZO = [
@@ -24,6 +25,11 @@ PAREJAS_REEMPLAZO = [
     ("todoconta://", "iustechconta://"),
     ("TodoConta", "IusTechConta"),
     ("todoconta", "iustechconta"),
+    # Desactivar la vista de versión en piloto para ir directo al formulario de acceso
+    (
+        "const webNecesitaProvision = esWeb() && webSinConexion;",
+        "const webNecesitaProvision = false;",
+    ),
 ]
 
 

@@ -84,7 +84,7 @@ export default function LoginPage() {
   // valida contra Supabase, enciende el contenedor del usuario y devuelve
   // {base_url, token, session}). Ya conectados, el flujo normal via agente
   // funciona igual que en desktop.
-  const webNecesitaProvision = esWeb() && webSinConexion;
+  const webNecesitaProvision = false;
 
   // Guarda la conexión y entrega la sesión al agente recién aprovisionado.
   const adoptarYConectar = useCallback(

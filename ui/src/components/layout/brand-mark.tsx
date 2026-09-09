@@ -18,8 +18,8 @@ interface BrandMarkProps {
 }
 
 /**
- * Lockup de marca TodoConta: icono + wordmark con el punto en cian (`--accent-ai`),
- * igual que el BrandMark canónico de todoconta-apps. Reutilizable (sidebar, login, …).
+ * Lockup de marca IusTechConta: icono + wordmark con el punto en cian (`--accent-ai`),
+ * igual que el BrandMark canónico de iustechconta-apps. Reutilizable (sidebar, login, …).
  */
 export function BrandMark({
   size = 34,
@@ -32,8 +32,8 @@ export function BrandMark({
   return (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
       <Image
-        src="/todoconta-icon.svg"
-        alt="TodoConta"
+        src="/iustechconta-icon.svg"
+        alt="IusTechConta"
         width={size}
         height={size}
         priority={priority}
@@ -44,7 +44,7 @@ export function BrandMark({
           className="truncate font-extrabold tracking-tight text-foreground"
           style={{ fontSize: wordmarkSize }}
         >
-          TodoConta<span className="text-accent-ai">.</span>
+          IusTechConta<span className="text-accent-ai">.</span>
         </span>
       )}
     </span>
