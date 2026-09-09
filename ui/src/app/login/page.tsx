@@ -464,12 +464,12 @@ export default function LoginPage() {
               </p>
               <p className="mt-7 border-t border-border/60 pt-5 text-xs leading-relaxed text-muted-foreground/80">
                 {esLogin ? 'Al continuar' : 'Al crear tu cuenta'}, aceptas los{' '}
-                <LinkExterno href="https://iustechconta.com/terminos">
+                <LinkExterno href="https://iustechconta.com/tyc">
                   Términos y condiciones
                 </LinkExterno>{' '}
-                y la{' '}
-                <LinkExterno href="https://iustechconta.com/privacidad">
-                  Política de privacidad
+                y el{' '}
+                <LinkExterno href="https://iustechconta.com/aviso">
+                  Aviso de privacidad
                 </LinkExterno>{' '}
                 de IusTechConta.
               </p>
