@@ -3,9 +3,12 @@
 // Envía y verifica códigos OTP de 6 dígitos y contraseñas directo contra Supabase.
 // ---------------------------------------------------------------------------
 
-const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const PROVISIONER_URL = (process.env.NEXT_PUBLIC_PROVISIONER_URL ?? '').replace(/\/+$/, '');
+const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+  .trim()
+  .replace(/\/+$/, '')
+  .replace(/\/rest\/v1\/?$/, '');
+const SUPABASE_ANON_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+const PROVISIONER_URL = (process.env.NEXT_PUBLIC_PROVISIONER_URL ?? '').trim().replace(/\/+$/, '');
 
 export interface SesionProvisionada {
   access_token: string;
